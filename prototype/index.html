@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f6f7f4" />
+    <meta name="description" content="麻雀店の卓・半荘・売上を管理するスタッフ用ダッシュボード" />
+    <title>麻雀ウェーブ | 店舗管理</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" id="sidebar">
+        <a class="brand" href="#home" aria-label="麻雀ウェーブ ホーム">
+          <span class="brand-mark" aria-hidden="true">雀</span>
+          <span><strong>麻雀ウェーブ</strong><small>STORE MANAGEMENT</small></span>
+        </a>
+        <div class="store-switch"><span class="store-avatar">波</span><span><strong>麻雀ウェーブ 本店</strong><small>店舗スタッフ</small></span><span class="chevron">⌄</span></div>
+        <nav class="main-nav" aria-label="メインメニュー">
+          <p class="nav-label">WORKSPACE</p>
+          <a class="nav-item active" href="#home"><span class="nav-icon">◫</span>ダッシュボード</a>
+          <a class="nav-item" href="#tables"><span class="nav-icon">▦</span>卓管理 <span class="nav-count">3</span></a>
+          <a class="nav-item" href="#customers"><span class="nav-icon">♙</span>顧客管理</a>
+          <a class="nav-item" href="#games"><span class="nav-icon">▤</span>対局・成績</a>
+          <a class="nav-item" href="#accounting"><span class="nav-icon">￥</span>会計</a>
+          <p class="nav-label nav-label-spaced">ANALYTICS</p>
+          <a class="nav-item" href="#reports"><span class="nav-icon">▥</span>売上・日報</a>
+          <a class="nav-item" href="#ranking"><span class="nav-icon">♜</span>ランキング</a>
+        </nav>
+        <div class="sidebar-bottom">
+          <a class="nav-item" href="#settings"><span class="nav-icon">⚙</span>店舗設定</a>
+          <div class="user-card"><span class="user-avatar">田</span><span><strong>田中 健</strong><small>管理者</small></span><button class="more-button" aria-label="アカウントメニュー">···</button></div>
+        </div>
+      </aside>
+
+      <main class="main-content" id="home">
+        <header class="topbar">
+          <button class="mobile-menu" id="menuButton" aria-label="メニューを開く">☰</button>
+          <div class="breadcrumb">店舗管理 <span>/</span> <strong>ダッシュボード</strong></div>
+          <div class="topbar-right"><span class="live-indicator"><i></i>営業中</span><span class="topbar-divider"></span><span class="today-date" id="todayDate"></span><button class="icon-button" aria-label="通知">♧<i class="notification-dot"></i></button></div>
+        </header>
+
+        <div class="page-content">
+          <section class="welcome-row">
+            <div><p class="eyebrow">MONDAY, OCTOBER 05, 2026 <span class="demo-badge">デモ表示</span></p><h1>おかえりなさい、田中さん <span class="wave">✳</span></h1><p class="welcome-subtitle">本日の営業状況をまとめました。</p></div>
+            <div class="welcome-actions"><button class="button button-secondary" id="reportButton"><span>▤</span> 日報を見る</button><button class="button button-primary" id="startGameButton"><span>＋</span> 半荘を開始</button></div>
+          </section>
+
+          <section class="stats-grid" aria-label="本日の概要">
+            <article class="stat-card"><div class="stat-top"><span class="stat-label">本日の売上</span><span class="stat-icon mint">￥</span></div><strong class="stat-value">¥ 48,600</strong><div class="stat-foot"><span class="trend-up">↗ 12.8%</span><span>前営業日比</span></div><div class="sparkline mint-line"><svg viewBox="0 0 120 34" preserveAspectRatio="none" aria-hidden="true"><path d="M1 28 C12 26 13 19 23 23 S37 16 45 20 S56 25 65 14 S78 19 86 11 S99 15 107 7 S115 10 120 3" /></svg></div></article>
+            <article class="stat-card"><div class="stat-top"><span class="stat-label">来店人数</span><span class="stat-icon lavender">♙</span></div><strong class="stat-value">24<span class="stat-unit">名</span></strong><div class="stat-foot"><span class="trend-up">↗ 3名</span><span>前営業日比</span></div><div class="sparkline purple-line"><svg viewBox="0 0 120 34" preserveAspectRatio="none" aria-hidden="true"><path d="M1 25 C11 23 13 28 22 19 S34 24 42 15 S52 22 61 12 S74 17 82 10 S94 17 103 6 S114 10 120 3" /></svg></div></article>
+            <article class="stat-card"><div class="stat-top"><span class="stat-label">本日の半荘数</span><span class="stat-icon peach">▤</span></div><strong class="stat-value">18<span class="stat-unit">回</span></strong><div class="stat-foot"><span class="trend-neutral">目標 24回</span><span>進捗 75%</span></div><div class="progress-track"><span style="width:75%"></span></div></article>
+            <article class="stat-card"><div class="stat-top"><span class="stat-label">稼働中の卓</span><span class="stat-icon blue">▦</span></div><strong class="stat-value">3<span class="stat-unit"> / 5 卓</span></strong><div class="stat-foot"><span class="status-live"><i></i> 3卓 稼働中</span><span>2卓 空き</span></div><div class="table-dots"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></div></article>
+          </section>
+
+          <section class="dashboard-grid">
+            <article class="panel table-panel" id="tables">
+              <div class="panel-heading"><div><h2>現在の卓状況</h2><p>各卓の稼働状況を確認できます</p></div><a href="#tables" class="text-link">すべて見る <span>→</span></a></div>
+              <div class="table-list">
+                <div class="table-row"><div class="table-name"><span class="table-number">01</span><span><strong>1番卓</strong><small>東南戦</small></span></div><div class="player-stack"><span class="mini-avatar coral">佐</span><span class="mini-avatar blue-bg">鈴</span><span class="mini-avatar green-bg">高</span><span class="mini-avatar violet-bg">山</span><div><strong>佐藤さん、鈴木さん 他</strong><small>4名で対局中</small></div></div><div class="table-meta"><span class="round-chip">東 3局</span><small>開始 13:24</small></div><div class="table-status busy"><i></i>稼働中</div><button class="row-more" aria-label="1番卓のメニュー">···</button></div>
+                <div class="table-row"><div class="table-name"><span class="table-number">02</span><span><strong>2番卓</strong><small>東南戦</small></span></div><div class="player-stack"><span class="mini-avatar amber">伊</span><span class="mini-avatar blue-bg">小</span><span class="mini-avatar coral">中</span><span class="mini-avatar green-bg">松</span><div><strong>伊藤さん、小林さん 他</strong><small>4名で対局中</small></div></div><div class="table-meta"><span class="round-chip">南 1局</span><small>開始 14:06</small></div><div class="table-status busy"><i></i>稼働中</div><button class="row-more" aria-label="2番卓のメニュー">···</button></div>
+                <div class="table-row"><div class="table-name"><span class="table-number">03</span><span><strong>3番卓</strong><small>東南戦</small></span></div><div class="player-stack"><span class="mini-avatar violet-bg">渡</span><span class="mini-avatar amber">吉</span><span class="mini-avatar blue-bg">井</span><span class="mini-avatar coral">木</span><div><strong>渡辺さん、吉田さん 他</strong><small>4名で対局中</small></div></div><div class="table-meta"><span class="round-chip">東 4局</span><small>開始 14:32</small></div><div class="table-status busy"><i></i>稼働中</div><button class="row-more" aria-label="3番卓のメニュー">···</button></div>
+                <div class="table-row table-row-empty"><div class="table-name"><span class="table-number empty-number">04</span><span><strong>4番卓</strong><small>東南戦</small></span></div><div class="empty-message"><span class="empty-chair">＋</span>空卓です</div><div class="table-meta"><span class="round-chip muted-chip">待機中</span><small>—</small></div><button class="button button-small" data-seat="4">着席を登録</button></div>
+              </div>
+              <div class="panel-footer"><span><i class="legend-dot"></i> 稼働中 3卓</span><span><i class="legend-dot idle"></i> 空卓 2卓</span><a href="#tables">卓一覧を開く →</a></div>
+            </article>
+
+            <article class="panel revenue-panel" id="reports">
+              <div class="panel-heading"><div><h2>売上の推移</h2><p>今週の売上サマリー</p></div><button class="select-button" id="periodButton">今週 <span>⌄</span></button></div>
+              <div class="chart-summary"><strong>¥ 286,400</strong><span class="trend-up">↗ 8.2%</span><small>前週比</small></div>
+              <div class="chart-legend"><span><i class="legend-bar"></i>今週</span><span><i class="legend-bar previous"></i>先週</span></div>
+              <div class="chart-wrap"><div class="chart-y-labels"><span>¥80k</span><span>¥60k</span><span>¥40k</span><span>¥20k</span><span>¥0</span></div><div class="chart-area"><div class="grid-lines"><i></i><i></i><i></i><i></i><i></i></div><svg class="revenue-chart" viewBox="0 0 440 178" preserveAspectRatio="none" aria-label="今週と先週の売上比較"><defs><linearGradient id="fillWeek" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#7cb9a1" stop-opacity=".24"/><stop offset="100%" stop-color="#7cb9a1" stop-opacity="0"/></linearGradient></defs><path class="last-week" d="M0 117 C22 106 36 122 63 99 S101 100 126 88 S165 112 189 83 S229 87 252 70 S291 87 315 66 S355 72 378 48 S417 57 440 38"/><path class="this-week-fill" d="M0 102 C25 110 38 80 63 91 S101 65 126 73 S165 48 189 66 S228 34 252 50 S292 30 315 43 S355 20 378 33 S417 12 440 17 L440 178 L0 178Z"/><path class="this-week" d="M0 102 C25 110 38 80 63 91 S101 65 126 73 S165 48 189 66 S228 34 252 50 S292 30 315 43 S355 20 378 33 S417 12 440 17"/><circle cx="440" cy="17" r="4" class="chart-point"/></svg><div class="chart-x-labels"><span>月</span><span>火</span><span>水</span><span>木</span><span>金</span><span>土</span><span>日</span></div></div></div>
+              <div class="revenue-breakdown"><div><span class="breakdown-dot game-dot"></span><span>ゲーム売上</span><strong>¥ 198,000</strong></div><div><span class="breakdown-dot food-dot"></span><span>飲食売上</span><strong>¥ 72,400</strong></div><div><span class="breakdown-dot other-dot"></span><span>その他</span><strong>¥ 16,000</strong></div></div>
+            </article>
+          </section>
+
+          <section class="bottom-grid">
+            <article class="panel activity-panel" id="games">
+              <div class="panel-heading"><div><h2>最近の対局</h2><p>確定した半荘の結果</p></div><a href="#games" class="text-link">履歴を見る <span>→</span></a></div>
+              <div class="activity-list">
+                <div class="activity-row"><span class="activity-place first">1</span><div class="activity-person"><strong>佐藤 健一</strong><small>1番卓 · 東南戦</small></div><span class="activity-score positive">+42.6</span><span class="activity-time">15:18</span><span class="confirmed"><i></i>確定</span></div>
+                <div class="activity-row"><span class="activity-place second">2</span><div class="activity-person"><strong>鈴木 みさき</strong><small>1番卓 · 東南戦</small></div><span class="activity-score positive">+8.4</span><span class="activity-time">15:18</span><span class="confirmed"><i></i>確定</span></div>
+                <div class="activity-row"><span class="activity-place third">3</span><div class="activity-person"><strong>高橋 大輔</strong><small>1番卓 · 東南戦</small></div><span class="activity-score negative">−16.2</span><span class="activity-time">15:18</span><span class="confirmed"><i></i>確定</span></div>
+              </div>
+            </article>
+            <article class="panel quick-panel" id="customers">
+              <div class="panel-heading"><div><h2>クイックアクション</h2><p>よく使う操作</p></div><span class="quick-spark">✳</span></div>
+              <div class="quick-actions"><button class="quick-action" id="customerButton"><span class="quick-icon customer-icon">♙</span><span><strong>顧客を登録</strong><small>新しい顧客情報を追加</small></span><b>→</b></button><button class="quick-action" id="settlementButton"><span class="quick-icon settlement-icon">￥</span><span><strong>会計を登録</strong><small>ゲーム・飲食の精算</small></span><b>→</b></button><button class="quick-action" id="tableButton"><span class="quick-icon table-icon">▦</span><span><strong>卓を管理</strong><small>空卓・稼働状況を確認</small></span><b>→</b></button></div>
+            </article>
+          </section>
+          <footer class="page-footer"><span>麻雀ウェーブ 店舗管理</span><span>スタッフ向け管理画面 <i></i> v0.1</span></footer>
+        </div>
+      </main>
+    </div>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script src="app.js"></script>
+  </body>
+</html>

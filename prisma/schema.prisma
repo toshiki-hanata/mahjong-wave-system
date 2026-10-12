@@ -1,0 +1,511 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  OWNER
+  MANAGER
+  STAFF
+}
+
+enum LoginRateLimitDimension {
+  IP
+  LOGIN_ID
+}
+
+enum VisitStatus {
+  WAITING
+  PLAYING
+  CHECKED_OUT
+}
+
+enum TableSessionStatus {
+  ACTIVE
+  ENDED
+}
+
+enum GameStatus {
+  DRAFT
+  CONFIRMED
+  CORRECTED
+}
+
+enum TieBreakRule {
+  POSITION_ASC
+}
+
+enum ScoreRoundingMode {
+  NONE
+  HALF_UP
+  DOWN
+}
+
+enum RewardType {
+  GAME_BENEFIT
+  POINTS
+  DRINK
+  OTHER
+}
+
+enum CampaignType {
+  WIN_STREAK
+  VISIT_FREQUENCY
+}
+
+enum CampaignStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  COMPLETED
+}
+
+enum CampaignProgressStatus {
+  ENROLLED
+  ACHIEVED
+  CLAIMED
+  EXPIRED
+}
+
+model Store {
+  id        String   @id @default(cuid())
+  name      String
+  timezone  String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  staff            Staff[]
+  auditLogs        AuditLog[]
+  rewards          Reward[]
+  campaigns        Campaign[]
+  campaignProgress CampaignProgress[]
+  campaignRewards  CampaignReward[]
+  rewardClaims     CampaignRewardClaim[]
+  pricingPlans     PricingPlan[]
+  customers        Customer[]
+  visits           Visit[]
+  mahjongTables    MahjongTable[]
+  tableSessions    TableSession[]
+  tableSeats       TableSeat[]
+  storeRules       StoreRule[]
+  rankingSettings RankingSettings?
+  games            Game[]
+  gameResults      GamePlayerResult[]
+}
+
+model Staff {
+  id           String   @id @default(cuid())
+  storeId      String
+  name         String
+  loginId      String
+  passwordHash String
+  role         Role
+  isActive     Boolean  @default(true)
+  sessionVersion Int     @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  store     Store      @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  auditLogs AuditLog[]
+  storeRulesCreated StoreRule[] @relation("StoreRuleCreatedBy")
+  gamesCreated      Game[]      @relation("GameCreatedBy")
+  gamesCorrected    Game[]      @relation("GameCorrectedBy")
+
+  @@unique([loginId])
+  @@unique([storeId, id])
+  @@index([storeId, isActive])
+}
+
+model LoginAttemptBucket {
+  id              String                  @id @default(cuid())
+  bucketKey       String                  @unique @db.VarChar(64)
+  dimension       LoginRateLimitDimension
+  failureCount    Int                     @default(0)
+  windowStartedAt DateTime                @db.Timestamptz(3)
+  updatedAt       DateTime                @updatedAt @db.Timestamptz(3)
+
+  @@index([windowStartedAt])
+}
+
+// Deliberately empty in migrations. Integration tests require an operator-created,
+// environment-specific marker in the non-production database they target.
+model DatabaseTestMarker {
+  id            Int      @id @default(1)
+  environmentId String   @unique @db.VarChar(64)
+  createdAt     DateTime @default(now()) @db.Timestamptz(3)
+}
+
+model AuditLog {
+  id           String   @id @default(cuid())
+  storeId      String
+  actorStaffId String?
+  action       String
+  entityType   String
+  entityId     String?
+  metadata     Json?
+  createdAt    DateTime @default(now())
+
+  store Store  @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  actor Staff? @relation(fields: [actorStaffId], references: [id], onDelete: SetNull)
+
+  @@index([storeId, createdAt])
+  @@index([entityType, entityId])
+  @@index([actorStaffId, createdAt])
+}
+
+model Customer {
+  id           String    @id @default(cuid())
+  storeId      String
+  customerCode String
+  internalName String
+  note         String?
+  firstVisitAt DateTime?
+  lastVisitAt  DateTime?
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  store            Store              @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  publicProfile    PublicProfile?
+  campaignProgress CampaignProgress[]
+  visits           Visit[]
+  gameResults      GamePlayerResult[]
+
+  @@unique([storeId, customerCode])
+  @@unique([storeId, id])
+  @@index([storeId, isActive, internalName])
+  @@index([storeId, createdAt])
+}
+
+model Visit {
+  id           String      @id @default(cuid())
+  storeId      String
+  customerId   String
+  checkedInAt  DateTime    @default(now()) @db.Timestamptz(3)
+  checkedOutAt DateTime?   @db.Timestamptz(3)
+  status       VisitStatus @default(WAITING)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  store      Store       @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  customer   Customer    @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  tableSeats TableSeat[]
+  gameResults GamePlayerResult[]
+
+  @@unique([storeId, id])
+  @@index([storeId, status, checkedInAt])
+  @@index([storeId, customerId, status])
+  @@index([storeId, customerId, checkedInAt])
+}
+
+model MahjongTable {
+  id        String   @id @default(cuid())
+  storeId   String
+  name      String
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  store    Store          @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  sessions TableSession[]
+
+  @@unique([storeId, name])
+  @@unique([storeId, id])
+  @@index([storeId, isActive, sortOrder])
+}
+
+model TableSession {
+  id             String             @id @default(cuid())
+  storeId        String
+  mahjongTableId String
+  storeRuleId    String?
+  status         TableSessionStatus @default(ACTIVE)
+  startedAt      DateTime           @default(now()) @db.Timestamptz(3)
+  endedAt        DateTime?          @db.Timestamptz(3)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  store        Store        @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  mahjongTable MahjongTable @relation(fields: [storeId, mahjongTableId], references: [storeId, id], onDelete: Restrict)
+  storeRule    StoreRule?   @relation(fields: [storeId, storeRuleId], references: [storeId, id], onDelete: Restrict)
+  seats        TableSeat[]
+  games        Game[]
+
+  @@unique([storeId, id])
+  @@index([storeId, status, startedAt])
+  @@index([storeId, mahjongTableId, status])
+}
+
+model StoreRule {
+  id                 String           @id @default(cuid())
+  storeId            String
+  version            Int
+  startingPoints     Int
+  returnPoints       Int
+  umaFirst           Int
+  umaSecond          Int
+  umaThird           Int
+  umaFourth          Int
+  okaTop             Int
+  pointUnit          Int
+  requiredTotal      Int
+  allowNegative      Boolean
+  tieBreakRule       TieBreakRule
+  scorePointDivisor  Int              @default(1000)
+  scorePrecision     Int
+  roundingMode       ScoreRoundingMode
+  isProvisional      Boolean          @default(true)
+  isActive           Boolean          @default(true)
+  createdByStaffId   String?
+  createdAt          DateTime         @default(now()) @db.Timestamptz(3)
+
+  store        Store         @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  createdBy    Staff?        @relation("StoreRuleCreatedBy", fields: [storeId, createdByStaffId], references: [storeId, id], onDelete: Restrict)
+  tableSessions TableSession[]
+  games        Game[]
+
+  @@unique([storeId, id])
+  @@unique([storeId, version])
+  @@index([storeId, isActive, version])
+}
+
+model RankingSettings {
+  storeId             String   @id
+  monthlyMinimumGames Int      @default(10)
+  annualMinimumGames  Int      @default(30)
+  lifetimeMinimumGames Int    @default(30)
+  createdAt           DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt           DateTime @updatedAt @db.Timestamptz(3)
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Restrict)
+}
+
+model Game {
+  id                String     @id @default(cuid())
+  storeId           String
+  tableSessionId    String
+  storeRuleId       String
+  sequenceNumber    Int
+  revisionNumber    Int        @default(1)
+  status            GameStatus @default(CONFIRMED)
+  idempotencyKey    String
+  ruleSnapshot      Json
+  confirmedAt       DateTime   @default(now()) @db.Timestamptz(3)
+  effectiveAt       DateTime   @default(now()) @db.Timestamptz(3)
+  correctedAt       DateTime?  @db.Timestamptz(3)
+  correctionReason  String?
+  correctedByGameId String?
+  correctedByStaffId String?
+  createdByStaffId  String
+  createdAt         DateTime   @default(now()) @db.Timestamptz(3)
+
+  store            Store         @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  tableSession     TableSession  @relation(fields: [storeId, tableSessionId], references: [storeId, id], onDelete: Restrict)
+  storeRule        StoreRule     @relation(fields: [storeId, storeRuleId], references: [storeId, id], onDelete: Restrict)
+  createdBy        Staff         @relation("GameCreatedBy", fields: [storeId, createdByStaffId], references: [storeId, id], onDelete: Restrict)
+  correctedBy      Staff?        @relation("GameCorrectedBy", fields: [storeId, correctedByStaffId], references: [storeId, id], onDelete: Restrict)
+  correctedGame    Game?         @relation("GameCorrection", fields: [storeId, correctedByGameId], references: [storeId, id], onDelete: Restrict)
+  originalGame     Game?         @relation("GameCorrection")
+  results          GamePlayerResult[]
+
+  @@unique([storeId, id])
+  @@unique([storeId, correctedByGameId])
+  @@unique([storeId, tableSessionId, sequenceNumber, revisionNumber])
+  @@unique([storeId, tableSessionId, idempotencyKey])
+  @@index([storeId, tableSessionId, sequenceNumber, status])
+  @@index([storeId, status, effectiveAt])
+}
+
+model GamePlayerResult {
+  id                String   @id @default(cuid())
+  storeId           String
+  gameId            String
+  visitId           String
+  customerId        String
+  position          Int
+  finalPoints       Int
+  rank              Int
+  scoreScaled       Int
+  createdAt         DateTime @default(now()) @db.Timestamptz(3)
+
+  store    Store    @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  game     Game     @relation(fields: [storeId, gameId], references: [storeId, id], onDelete: Restrict)
+  visit    Visit    @relation(fields: [storeId, visitId], references: [storeId, id], onDelete: Restrict)
+  customer Customer @relation(fields: [storeId, customerId], references: [storeId, id], onDelete: Restrict)
+
+  @@unique([storeId, gameId, visitId])
+  @@unique([storeId, gameId, customerId])
+  @@unique([storeId, gameId, position])
+  @@unique([storeId, gameId, rank])
+  @@index([storeId, customerId, createdAt])
+  @@index([storeId, gameId])
+}
+
+model TableSeat {
+  id             String    @id @default(cuid())
+  storeId        String
+  tableSessionId String
+  visitId        String
+  position       Int
+  removedAt      DateTime? @db.Timestamptz(3)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  store        Store        @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  tableSession TableSession @relation(fields: [storeId, tableSessionId], references: [storeId, id], onDelete: Restrict)
+  visit        Visit        @relation(fields: [storeId, visitId], references: [storeId, id], onDelete: Restrict)
+
+  @@index([storeId, tableSessionId, removedAt])
+  @@index([storeId, visitId, removedAt])
+  @@index([storeId, tableSessionId, position])
+}
+
+// Only explicitly approved public fields live here; never copy internal customer data.
+model PublicProfile {
+  id             String   @id @default(cuid())
+  customerId     String   @unique
+  publicId       String   @unique
+  nickname       String
+  avatarUrl      String?
+  rankingOptIn   Boolean  @default(false)
+  profileVisible Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Restrict)
+}
+
+// Campaign and pricing models reserve the future configuration structure.
+// No campaign evaluation, reward fulfillment, or price application is part of Sprint 1.
+model Reward {
+  id        String     @id @default(cuid())
+  storeId   String
+  name      String
+  type      RewardType
+  details   Json?
+  isActive  Boolean    @default(true)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  store           Store            @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  campaignRewards CampaignReward[]
+
+  @@index([storeId, isActive])
+}
+
+model Campaign {
+  id            String         @id @default(cuid())
+  storeId       String
+  name          String
+  type          CampaignType
+  status        CampaignStatus @default(DRAFT)
+  startsAt      DateTime
+  endsAt        DateTime
+  requiredCount Int?
+  criteria      Json?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  store    Store              @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  rewards  CampaignReward[]
+  progress CampaignProgress[]
+
+  @@index([storeId, status, startsAt, endsAt])
+}
+
+model CampaignReward {
+  id          String   @id @default(cuid())
+  storeId     String
+  campaignId  String
+  rewardId    String
+  tier        Int
+  threshold   Int
+  canContinue Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  campaign Campaign              @relation(fields: [campaignId], references: [id], onDelete: Restrict)
+  reward   Reward                @relation(fields: [rewardId], references: [id], onDelete: Restrict)
+  claims   CampaignRewardClaim[]
+  store    Store                 @relation(fields: [storeId], references: [id], onDelete: Restrict)
+
+  @@unique([campaignId, tier])
+  @@index([storeId])
+  @@index([rewardId])
+}
+
+model CampaignProgress {
+  id               String                 @id @default(cuid())
+  storeId          String
+  campaignId       String
+  customerId       String
+  status           CampaignProgressStatus @default(ENROLLED)
+  count            Int                    @default(0)
+  currentWinStreak Int                    @default(0)
+  highestWinStreak Int                    @default(0)
+  currentTier      Int                    @default(0)
+  selectedNextTier Int?
+  achievedAt       DateTime?
+  claimedAt        DateTime?
+  updatedAt        DateTime               @updatedAt
+
+  store        Store                 @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  campaign     Campaign              @relation(fields: [campaignId], references: [id], onDelete: Restrict)
+  customer     Customer              @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  rewardClaims CampaignRewardClaim[]
+
+  @@unique([campaignId, customerId])
+  @@index([storeId, customerId, status])
+  @@index([campaignId, status])
+}
+
+enum RewardClaimStatus {
+  OFFERED
+  CLAIMED
+  DECLINED
+}
+
+model CampaignRewardClaim {
+  id               String            @id @default(cuid())
+  storeId          String
+  progressId       String
+  campaignRewardId String
+  status           RewardClaimStatus @default(OFFERED)
+  offeredAt        DateTime          @default(now())
+  claimedAt        DateTime?
+  selectedNextTier Int?
+
+  progress       CampaignProgress @relation(fields: [progressId], references: [id], onDelete: Restrict)
+  campaignReward CampaignReward   @relation(fields: [campaignRewardId], references: [id], onDelete: Restrict)
+  store          Store            @relation(fields: [storeId], references: [id], onDelete: Restrict)
+
+  @@unique([progressId, campaignRewardId])
+  @@index([storeId, status, offeredAt])
+}
+
+model PricingPlan {
+  id                   String    @id @default(cuid())
+  storeId              String
+  name                 String
+  validFrom            DateTime?
+  validUntil           DateTime?
+  weekdays             Int[]
+  localStartTime       String?
+  localEndTime         String?
+  requiresReservation  Boolean?
+  includedHanchanCount Int?
+  priceYen             Int?
+  isActive             Boolean   @default(false)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Restrict)
+
+  @@index([storeId, isActive, validFrom, validUntil])
+}
