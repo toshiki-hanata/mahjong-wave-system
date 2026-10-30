@@ -8,6 +8,7 @@ import { futureVisitCorrectionRoles, visitOperationRoles } from "./visit-permiss
 function memoryDb(options: { openVisit?: { id: string } | null; currentVisit?: { id: string; customerId: string; status: VisitStatus } | null } = {}) {
   const tx = {
     $queryRaw: vi.fn(async () => [{ id: "customer-1", firstVisitAt: null, lastVisitAt: null }]),
+    businessDay: { findFirst: vi.fn(async () => ({ id: "business-1", closedAt: null })) },
     customer: { update: vi.fn(async () => ({})) },
     visit: {
       findFirst: vi.fn(async () => options.currentVisit ?? options.openVisit ?? null),

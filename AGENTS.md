@@ -1,3 +1,4 @@
+
 <!-- BEGIN:nextjs-agent-rules -->
 
 # This is NOT the Next.js you know
@@ -7,3 +8,12 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+## 開発・コミットの進め方（2026-10-30 ユーザー指定）
+
+- 1タスクごとに「実装 → 変更に応じた確認・テスト → やることリスト更新 → 作業ブランチへローカルコミット」を完了してから次へ進む。
+- コミットごとの追加確認は不要。業務仕様の疑問・未確定事項は、その部分の実装を止めてユーザーに確認する。
+- テスト失敗や未完了の作業を完了扱いにしない。実機など未確認の事項は明記する。
+- 関係するコード・テスト・migration・文書を一緒に保存し、無関係な変更を混ぜない。
+- mainへの反映・push・公開は別途ユーザーの指示がある場合に行う。
+- .env、秘密情報、顧客データ、生成物、ログはコミットしない。

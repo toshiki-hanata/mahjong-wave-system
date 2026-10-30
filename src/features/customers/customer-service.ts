@@ -4,6 +4,7 @@ import { randomBytes } from "node:crypto";
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { recordAuditLog } from "@/lib/audit-log";
 import type { CustomerCreateInput, CustomerUpdateInput } from "./schemas";
+import { lockBusinessStore } from "@/features/business-days/business-day-service";
 
 type TransactionDatabase = Pick<PrismaClient, "$transaction">;
 
@@ -17,6 +18,7 @@ export async function createCustomer(
   context: { storeId: string; staffId: string },
 ): Promise<string> {
   return database.$transaction(async (tx) => {
+    await lockBusinessStore(tx, context.storeId);
     const customer = await tx.customer.create({
       data: {
         storeId: context.storeId,
@@ -54,6 +56,7 @@ export async function updateCustomer(
   context: { storeId: string; staffId: string },
 ): Promise<boolean> {
   return database.$transaction(async (tx) => {
+    await lockBusinessStore(tx, context.storeId);
     const current = await tx.customer.findFirst({
       where: { id: customerId, storeId: context.storeId },
       select: { id: true, publicProfile: { select: { id: true, nickname: true } } },
@@ -110,6 +113,7 @@ export async function deactivateCustomer(
   context: { storeId: string; staffId: string },
 ): Promise<boolean> {
   return database.$transaction(async (tx) => {
+    await lockBusinessStore(tx, context.storeId);
     const customer = await tx.customer.findFirst({
       where: { id: customerId, storeId: context.storeId, isActive: true },
       select: { id: true },

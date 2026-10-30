@@ -76,6 +76,7 @@ model Store {
   id        String   @id @default(cuid())
   name      String
   timezone  String
+  freeGamePriceYen Int @default(2500)
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -97,6 +98,7 @@ model Store {
   rankingSettings RankingSettings?
   games            Game[]
   gameResults      GamePlayerResult[]
+  businessDays     BusinessDay[]
 }
 
 model Staff {
@@ -116,6 +118,8 @@ model Staff {
   storeRulesCreated StoreRule[] @relation("StoreRuleCreatedBy")
   gamesCreated      Game[]      @relation("GameCreatedBy")
   gamesCorrected    Game[]      @relation("GameCorrectedBy")
+  businessDaysOpened BusinessDay[] @relation("BusinessDayOpenedBy")
+  businessDaysClosed BusinessDay[] @relation("BusinessDayClosedBy")
 
   @@unique([loginId])
   @@unique([storeId, id])
@@ -187,6 +191,7 @@ model Visit {
   id           String      @id @default(cuid())
   storeId      String
   customerId   String
+  businessDayId String?
   checkedInAt  DateTime    @default(now()) @db.Timestamptz(3)
   checkedOutAt DateTime?   @db.Timestamptz(3)
   status       VisitStatus @default(WAITING)
@@ -195,6 +200,7 @@ model Visit {
 
   store      Store       @relation(fields: [storeId], references: [id], onDelete: Restrict)
   customer   Customer    @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  businessDay BusinessDay? @relation(fields: [storeId, businessDayId], references: [storeId, id], onDelete: Restrict)
   tableSeats TableSeat[]
   gameResults GamePlayerResult[]
 
@@ -202,6 +208,7 @@ model Visit {
   @@index([storeId, status, checkedInAt])
   @@index([storeId, customerId, status])
   @@index([storeId, customerId, checkedInAt])
+  @@index([storeId, businessDayId])
 }
 
 model MahjongTable {
@@ -226,6 +233,7 @@ model TableSession {
   storeId        String
   mahjongTableId String
   storeRuleId    String?
+  businessDayId  String?
   status         TableSessionStatus @default(ACTIVE)
   startedAt      DateTime           @default(now()) @db.Timestamptz(3)
   endedAt        DateTime?          @db.Timestamptz(3)
@@ -235,12 +243,14 @@ model TableSession {
   store        Store        @relation(fields: [storeId], references: [id], onDelete: Restrict)
   mahjongTable MahjongTable @relation(fields: [storeId, mahjongTableId], references: [storeId, id], onDelete: Restrict)
   storeRule    StoreRule?   @relation(fields: [storeId, storeRuleId], references: [storeId, id], onDelete: Restrict)
+  businessDay BusinessDay? @relation(fields: [storeId, businessDayId], references: [storeId, id], onDelete: Restrict)
   seats        TableSeat[]
   games        Game[]
 
   @@unique([storeId, id])
   @@index([storeId, status, startedAt])
   @@index([storeId, mahjongTableId, status])
+  @@index([storeId, businessDayId])
 }
 
 model StoreRule {
@@ -292,6 +302,8 @@ model Game {
   storeId           String
   tableSessionId    String
   storeRuleId       String
+  businessDayId     String?
+  freeGamePriceYen  Int?
   sequenceNumber    Int
   revisionNumber    Int        @default(1)
   status            GameStatus @default(CONFIRMED)
@@ -309,6 +321,7 @@ model Game {
   store            Store         @relation(fields: [storeId], references: [id], onDelete: Restrict)
   tableSession     TableSession  @relation(fields: [storeId, tableSessionId], references: [storeId, id], onDelete: Restrict)
   storeRule        StoreRule     @relation(fields: [storeId, storeRuleId], references: [storeId, id], onDelete: Restrict)
+  businessDay      BusinessDay?  @relation(fields: [storeId, businessDayId], references: [storeId, id], onDelete: Restrict)
   createdBy        Staff         @relation("GameCreatedBy", fields: [storeId, createdByStaffId], references: [storeId, id], onDelete: Restrict)
   correctedBy      Staff?        @relation("GameCorrectedBy", fields: [storeId, correctedByStaffId], references: [storeId, id], onDelete: Restrict)
   correctedGame    Game?         @relation("GameCorrection", fields: [storeId, correctedByGameId], references: [storeId, id], onDelete: Restrict)
@@ -321,6 +334,32 @@ model Game {
   @@unique([storeId, tableSessionId, idempotencyKey])
   @@index([storeId, tableSessionId, sequenceNumber, status])
   @@index([storeId, status, effectiveAt])
+  @@index([storeId, businessDayId, status])
+}
+
+// A business day is explicitly opened/closed; midnight never closes it automatically.
+// The partial unique index for one open day per store lives in the migration.
+model BusinessDay {
+  id String @id @default(cuid())
+  storeId String
+  requestKey String
+  label String @db.VarChar(10)
+  timezone String
+  freeGamePriceYen Int
+  openedAt DateTime @default(now()) @db.Timestamptz(3)
+  closedAt DateTime? @db.Timestamptz(3)
+  openedByStaffId String
+  closedByStaffId String?
+  store Store @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  openedBy Staff @relation("BusinessDayOpenedBy", fields: [storeId, openedByStaffId], references: [storeId, id], onDelete: Restrict)
+  closedBy Staff? @relation("BusinessDayClosedBy", fields: [storeId, closedByStaffId], references: [storeId, id], onDelete: Restrict)
+  visits Visit[]
+  tableSessions TableSession[]
+  games Game[]
+
+  @@unique([storeId, id])
+  @@unique([storeId, requestKey])
+  @@index([storeId, openedAt])
 }
 
 model GamePlayerResult {

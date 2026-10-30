@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { PrismaClient } from "@prisma/client";
+import { seatingToken } from "@/features/tables/seat-snapshot";
 
 export async function getStoreRules(database: Pick<PrismaClient, "storeRule"> | null, storeId: string) {
   if (!database) return [];
@@ -14,13 +15,13 @@ export async function getGameEntryData(database: Pick<PrismaClient, "tableSessio
     include: {
       mahjongTable: { select: { name: true } },
       storeRule: true,
-      seats: { where: { removedAt: null }, orderBy: { position: "asc" }, select: { position: true, visit: { select: { id: true, storeId: true, customerId: true, status: true, customer: { select: { id: true, storeId: true, internalName: true, customerCode: true, isActive: true } } } } } },
+      seats: { where: { removedAt: null }, orderBy: { position: "asc" }, select: { id: true, visitId: true, position: true, visit: { select: { id: true, storeId: true, customerId: true, status: true, customer: { select: { id: true, storeId: true, internalName: true, customerCode: true, isActive: true } } } } } },
     },
   });
   if (!session) return null;
   const rule = session.storeRule ?? await database.storeRule.findFirst({ where: { storeId, isActive: true }, orderBy: { version: "desc" } });
   const max = await database.game.aggregate({ where: { storeId, tableSessionId }, _max: { sequenceNumber: true } });
-  return { session, rule, nextSequence: (max._max.sequenceNumber ?? 0) + 1 };
+  return { session, rule, nextSequence: (max._max.sequenceNumber ?? 0) + 1, seatingToken: seatingToken(session.seats) };
 }
 
 export async function getSessionGames(database: Pick<PrismaClient, "tableSession" | "game"> | null, storeId: string, tableSessionId: string) {

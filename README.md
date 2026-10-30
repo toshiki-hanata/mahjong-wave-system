@@ -1,5 +1,9 @@
 # 麻雀ウェーブ 店舗・成績管理システム
 
+継続開発の優先順位・追加仕様・未確定事項は [継続開発リスト](docs/DEVELOPMENT_BACKLOG.md) を参照してください。
+受付の操作手順と検証状況は [スマホ受付の改善](docs/MOBILE_RECEPTION.md) に記載しています。
+営業日・フリー本数／売上の操作と検証は [営業開始・終了](docs/BUSINESS_DAYS.md) を参照してください。
+
 ## 1. このドキュメントについて
 
 このREADMEは、本プロジェクトにおける仕様の基準書（Single Source of Truth）とする。

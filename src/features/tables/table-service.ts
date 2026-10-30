@@ -3,6 +3,7 @@ import "server-only";
 import { Prisma, TableSessionStatus, VisitStatus, type PrismaClient } from "@prisma/client";
 import { recordAuditLog } from "@/lib/audit-log";
 import { lockAndValidateVisitsForTableInTransaction, transitionVisitsForTableInTransaction } from "@/features/visits/visit-service";
+import { lockBusinessStore, requireOpenBusinessDay } from "@/features/business-days/business-day-service";
 
 type Database = Pick<PrismaClient, "$transaction">;
 type Context = { storeId: string; staffId: string };
@@ -33,6 +34,7 @@ export async function startTableSession(database: Database, tableId: string, sea
   assertSeatAssignment(seats);
   try {
     return await database.$transaction(async (tx) => {
+      const businessDay = await requireOpenBusinessDay(tx, context.storeId);
       const lockedTable = await tx.$queryRaw<Array<{ id: string }>>`
         SELECT "id" FROM "MahjongTable"
         WHERE "id" = ${tableId} AND "storeId" = ${context.storeId} AND "isActive" = true
@@ -40,14 +42,15 @@ export async function startTableSession(database: Database, tableId: string, sea
       `;
       if (!lockedTable.length) throw new TableNotAvailableError();
 
-      await tx.$queryRaw`SELECT "id" FROM "Store" WHERE "id" = ${context.storeId} FOR UPDATE`;
       const storeRule = await tx.storeRule.findFirst({ where: { storeId: context.storeId, isActive: true }, orderBy: { version: "desc" }, select: { id: true } });
       if (!storeRule) throw new StoreRuleUnavailableError();
 
       const visitIds = seats.map((seat) => seat.visitId);
       await lockAndValidateVisitsForTableInTransaction(tx, visitIds, context, VisitStatus.WAITING, true);
+      const dayVisits = await tx.visit.count({ where: { id: { in: visitIds }, storeId: context.storeId, businessDayId: businessDay.id } });
+      if (dayVisits !== 4) throw new InvalidTableSessionStateError();
       const session = await tx.tableSession.create({
-        data: { storeId: context.storeId, mahjongTableId: tableId, storeRuleId: storeRule.id, status: TableSessionStatus.ACTIVE },
+        data: { storeId: context.storeId, businessDayId: businessDay.id, mahjongTableId: tableId, storeRuleId: storeRule.id, status: TableSessionStatus.ACTIVE },
         select: { id: true },
       });
       await tx.tableSeat.createMany({
@@ -77,6 +80,7 @@ export async function startTableSession(database: Database, tableId: string, sea
 
 export async function endTableSession(database: Database, sessionId: string, context: Context): Promise<void> {
   await database.$transaction(async (tx) => {
+    await lockBusinessStore(tx, context.storeId);
     const sessions = await tx.$queryRaw<Array<{ id: string; status: TableSessionStatus }>>`
       SELECT "id", "status" FROM "TableSession"
       WHERE "id" = ${sessionId} AND "storeId" = ${context.storeId}

@@ -7,6 +7,7 @@ import { createCustomer, deactivateCustomer } from "@/features/customers/custome
 import { createTable, deactivateTable, endTableSession, startTableSession } from "@/features/tables/table-service";
 import { recordAuditLog } from "@/lib/audit-log";
 import { createGame, GameIdempotencyConflictError } from "./game-service";
+import { getGameEntryData } from "./game-queries";
 import { assertConfiguredDatabaseTest } from "@/test/assert-db-test-config";
 
 const databaseUrl = process.env.DIRECT_URL;
@@ -80,6 +81,7 @@ async function testDatabase(client: PrismaClient) {
     client,
     tableSessionId: sessionId,
     context,
+    snapshot: await getGameEntryData(client, context.storeId, sessionId),
   };
 }
 
@@ -156,10 +158,12 @@ concurrencySuite("Game result locking with independent PostgreSQL connections", 
     const dbA = await testDatabase(connectionA);
     const dbB = await testDatabase(connectionB);
 
+    let entry = (await getGameEntryData(connectionA, context.storeId, sessionId!))!;
+    let snapshot = { expectedSequence: entry.nextSequence, seatingToken: entry.seatingToken };
     const sameKey = randomUUID();
     const sameKeyResults = await Promise.all([
-      createGame(dbA.client, { tableSessionId: dbA.tableSessionId, idempotencyKey: sameKey, points: pointsA }, context),
-      createGame(dbB.client, { tableSessionId: dbB.tableSessionId, idempotencyKey: sameKey, points: pointsA }, context),
+      createGame(dbA.client, { ...snapshot, tableSessionId: dbA.tableSessionId, idempotencyKey: sameKey, points: pointsA }, context),
+      createGame(dbB.client, { ...snapshot, tableSessionId: dbB.tableSessionId, idempotencyKey: sameKey, points: pointsA }, context),
     ]);
     expect(sameKeyResults[0]!.id).toBe(sameKeyResults[1]!.id);
     expect(sameKeyResults.filter((result) => !result.replayed)).toHaveLength(1);
@@ -171,10 +175,12 @@ concurrencySuite("Game result locking with independent PostgreSQL connections", 
     expect(state.groupedResults).toEqual([{ gameId: sameKeyResults[0]!.id, _count: { _all: 4 } }]);
     expect(state.createAudits).toBe(1);
 
+    entry = (await getGameEntryData(connectionA, context.storeId, sessionId!))!;
+    snapshot = { expectedSequence: entry.nextSequence, seatingToken: entry.seatingToken };
     const conflictingKey = randomUUID();
     const conflicting = await Promise.allSettled([
-      createGame(dbA.client, { tableSessionId: dbA.tableSessionId, idempotencyKey: conflictingKey, points: pointsA }, context),
-      createGame(dbB.client, { tableSessionId: dbB.tableSessionId, idempotencyKey: conflictingKey, points: pointsB }, context),
+      createGame(dbA.client, { ...snapshot, tableSessionId: dbA.tableSessionId, idempotencyKey: conflictingKey, points: pointsA }, context),
+      createGame(dbB.client, { ...snapshot, tableSessionId: dbB.tableSessionId, idempotencyKey: conflictingKey, points: pointsB }, context),
     ]);
     const conflictSuccesses = conflicting.filter((result) => result.status === "fulfilled");
     const conflictRejections = conflicting.filter((result) => result.status === "rejected");
@@ -191,12 +197,20 @@ concurrencySuite("Game result locking with independent PostgreSQL connections", 
 
     const distinctKeyA = randomUUID();
     const distinctKeyB = randomUUID();
-    const distinctResults = await Promise.all([
-      createGame(dbA.client, { tableSessionId: dbA.tableSessionId, idempotencyKey: distinctKeyA, points: pointsA }, context),
-      createGame(dbB.client, { tableSessionId: dbB.tableSessionId, idempotencyKey: distinctKeyB, points: pointsB }, context),
+    entry = (await getGameEntryData(connectionA, context.storeId, sessionId!))!;
+    snapshot = { expectedSequence: entry.nextSequence, seatingToken: entry.seatingToken };
+    const distinctResults = await Promise.allSettled([
+      createGame(dbA.client, { ...snapshot, tableSessionId: sessionId!, idempotencyKey: distinctKeyA, points: pointsA }, context),
+      createGame(dbB.client, { ...snapshot, tableSessionId: sessionId!, idempotencyKey: distinctKeyB, points: pointsB }, context),
     ]);
-    distinctResults.forEach((result) => committedGameIds.add(result.id));
-    expect(distinctResults.map((result) => result.sequenceNumber).sort()).toEqual([3, 4]);
+    expect(distinctResults.filter((result) => result.status === "fulfilled")).toHaveLength(1);
+    expect(distinctResults.filter((result) => result.status === "rejected")).toHaveLength(1);
+    for (const result of distinctResults) if (result.status === "fulfilled") committedGameIds.add(result.value.id);
+    entry = (await getGameEntryData(connectionA, context.storeId, sessionId!))!;
+    snapshot = { expectedSequence: entry.nextSequence, seatingToken: entry.seatingToken };
+    const retryIndex = distinctResults.findIndex((result) => result.status === "rejected");
+    const refreshed = await createGame(connectionA, { ...snapshot, tableSessionId: sessionId!, idempotencyKey: retryIndex === 0 ? distinctKeyA : distinctKeyB, points: retryIndex === 0 ? pointsA : pointsB }, context);
+    committedGameIds.add(refreshed.id);
     state = await queryGameState();
     expect(state.games.map((game) => game.sequenceNumber)).toEqual([1, 2, 3, 4]);
     expect(new Set(state.games.map((game) => game.sequenceNumber)).size).toBe(4);
@@ -213,16 +227,11 @@ concurrencySuite("Game result locking with independent PostgreSQL connections", 
           throw injectedFailure;
         }),
     } as unknown as Parameters<typeof createGame>[0];
-    const failureRace = await Promise.allSettled([
-      createGame(dbA.client, { tableSessionId: dbA.tableSessionId, idempotencyKey: randomUUID(), points: pointsA }, context),
-      createGame(failingClient, { tableSessionId: dbB.tableSessionId, idempotencyKey: failingKey, points: pointsB }, context),
-    ]);
-    const failureSuccess = failureRace.find((result) => result.status === "fulfilled");
-    const failureRejected = failureRace.find((result) => result.status === "rejected");
-    expect(failureSuccess?.status).toBe("fulfilled");
-    expect(failureRejected?.status).toBe("rejected");
-    if (failureSuccess?.status === "fulfilled") committedGameIds.add(failureSuccess.value.id);
-    if (failureRejected?.status === "rejected") expect(failureRejected.reason).toBe(injectedFailure);
+    entry = (await getGameEntryData(connectionA, context.storeId, sessionId!))!;
+    snapshot = { expectedSequence: entry.nextSequence, seatingToken: entry.seatingToken };
+    await expect(createGame(failingClient, { ...snapshot, tableSessionId: sessionId!, idempotencyKey: failingKey, points: pointsB }, context)).rejects.toBe(injectedFailure);
+    const completed = await createGame(connectionA, { ...snapshot, tableSessionId: sessionId!, idempotencyKey: randomUUID(), points: pointsA }, context);
+    committedGameIds.add(completed.id);
     state = await queryGameState();
     expect(state.games).toHaveLength(5);
     expect(state.games.map((game) => game.sequenceNumber)).toEqual([1, 2, 3, 4, 5]);

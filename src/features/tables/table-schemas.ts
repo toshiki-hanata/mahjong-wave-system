@@ -21,3 +21,17 @@ export const startTableSessionSchema = z.object({
 
 export const endTableSessionSchema = z.object({ sessionId: z.string().min(1) });
 
+export const changeTableMembersSchema = z.object({
+  sessionId: z.string().min(1),
+  requestKey: z.uuid(),
+  seatingToken: z.string().regex(/^[a-f0-9]{64}$/),
+  expectedSequence: z.number().int().min(1),
+  mode: z.enum(["replace", "swap"]),
+  position: z.number().int().min(1).max(4),
+  incomingVisitId: z.string().optional(),
+  otherPosition: z.number().int().min(1).max(4).optional(),
+}).superRefine((value, ctx) => {
+  if (value.mode === "replace" && !value.incomingVisitId) ctx.addIssue({ code: "custom", path: ["incomingVisitId"], message: "次に入るお客さんを選択してください。" });
+  if (value.mode === "swap" && (!value.otherPosition || value.otherPosition === value.position)) ctx.addIssue({ code: "custom", path: ["otherPosition"], message: "異なる2つの座席を選択してください。" });
+});
+

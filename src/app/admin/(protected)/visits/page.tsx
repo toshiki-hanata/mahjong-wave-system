@@ -1,11 +1,13 @@
 import Link from "next/link";
+import { randomUUID } from "node:crypto";
 import { VisitStatus } from "@prisma/client";
 import { CheckInButton, CheckOutButton } from "@/features/visits/visit-action-buttons";
 import { getOpenVisits, getVisitStatusCounts, formatVisitDateTime } from "@/features/visits/visit-queries";
-import { searchCustomers } from "@/features/customers/customer-search";
+import { normalizeCustomerSearchTerm, searchCustomers } from "@/features/customers/customer-search";
 import { requireRole } from "@/lib/auth/current-staff";
 import { prisma } from "@/lib/prisma";
 import { visitOperationRoles } from "@/features/visits/visit-permissions";
+import { QuickReceptionForm } from "@/features/visits/quick-reception-form";
 
 type VisitsPageProps = { searchParams: Promise<{ q?: string | string[]; notice?: string | string[] }> };
 
@@ -18,24 +20,25 @@ const statusLabel = { WAITING: "待機中", PLAYING: "対局中", CHECKED_OUT: "
 export default async function VisitsPage({ searchParams }: VisitsPageProps) {
   const staff = await requireRole(visitOperationRoles);
   const params = await searchParams;
-  const query = first(params.q).trim();
+  const query = normalizeCustomerSearchTerm(first(params.q));
   const notice = first(params.notice);
   const [visits, counts, customers] = await Promise.all([
     getOpenVisits(prisma, staff.storeId),
     getVisitStatusCounts(prisma, staff.storeId),
-    prisma && query ? searchCustomers(prisma, staff.storeId, query, { limit: 20 }) : Promise.resolve([]),
+    prisma && query ? searchCustomers(prisma, staff.storeId, query, { limit: 20, includeInactive: true }) : Promise.resolve([]),
   ]);
   const waitingVisits = visits.filter((visit) => visit.status === VisitStatus.WAITING);
   const playingVisits = visits.filter((visit) => visit.status === VisitStatus.PLAYING);
+  const openCustomerIds = new Set(visits.map((visit) => visit.customer.id));
 
   return <div className="page-content visits-page">
     <header className="visits-heading">
       <div>
         <p className="eyebrow">STORE OPERATIONS</p>
-        <h1>来店管理</h1>
-        <p className="visits-subtitle">受付・来店中の確認・退店処理</p>
+        <h1>受付・来店中</h1>
+        <p className="visits-subtitle">お客さんを検索して受付。初めての方は、この画面で登録できます。</p>
       </div>
-      <Link className="button button-secondary" href="/admin/customers/new">顧客を登録</Link>
+      <Link className="button button-secondary" href="/admin/tables">卓に配置する →</Link>
     </header>
 
     {notice === "checked-out" && <p className="visit-notice" role="status">チェックアウトしました。</p>}
@@ -48,17 +51,23 @@ export default async function VisitsPage({ searchParams }: VisitsPageProps) {
     </section>
 
     <section className="panel visit-search-panel">
-      <div className="visit-section-heading"><div><h2>来店受付</h2><p>登録済みの有効な顧客を検索してチェックインします。</p></div></div>
+      <div className="visit-section-heading"><div><h2>1. 登録済みのお客さんを検索</h2><p>お名前・呼び名・会員番号で探せます。無効の登録も表示します。</p></div></div>
       <form className="visit-customer-search" method="get">
-        <label htmlFor="visit-customer-query">顧客コード・管理名・公開ニックネーム</label>
-        <div><input id="visit-customer-query" name="q" type="search" defaultValue={query} placeholder="顧客を検索" /><button className="button button-primary" type="submit">検索</button></div>
+        <label htmlFor="visit-customer-query">お名前・呼び名・会員番号</label>
+        <div><input id="visit-customer-query" name="q" type="search" maxLength={100} defaultValue={query} placeholder="例：佐藤、W0001" /><button className="button button-primary" type="submit">検索</button></div>
       </form>
       {query && <div className="visit-search-results" aria-live="polite">
-        {customers.length === 0 ? <p className="visit-empty">該当する有効顧客が見つかりません。</p> : customers.map((customer) => <article className="visit-customer-result" key={customer.id}>
-          <div><strong>{customer.internalName}</strong><span>顧客コード: {customer.customerCode}</span></div>
-          <CheckInButton customerId={customer.id} />
+        {customers.length === 0 ? <p className="visit-empty">登録が見つかりません。検索語を変えるか、下から新規登録してください。</p> : customers.map((customer) => <article className="visit-customer-result" key={customer.id}>
+          <div><strong>{customer.internalName}</strong><span>会員番号: {customer.customerCode}{!customer.isActive ? " · 無効" : ""}</span></div>
+          {openCustomerIds.has(customer.id) ? <span className="visit-action-result">受付済み</span> : customer.isActive ? <CheckInButton customerId={customer.id} /> : <Link className="button button-secondary" href={`/admin/customers/${customer.id}`}>顧客情報を確認</Link>}
         </article>)}
+        {customers.length === 20 && <p className="reception-help">最大20件を表示しています。お名前や会員番号を追加して絞り込んでください。</p>}
       </div>}
+    </section>
+
+    <section className="panel visit-search-panel" aria-labelledby="quick-reception-title">
+      <div className="visit-section-heading"><div><h2 id="quick-reception-title">2. 初めてのお客さんを登録・受付</h2><p>入力するのはお名前だけ。登録後すぐに待機中へ追加します。</p></div></div>
+      <QuickReceptionForm key={query} initialRequestId={randomUUID()} initialName={query} />
     </section>
 
     <section className="visit-open-section" aria-labelledby="open-visits-title">

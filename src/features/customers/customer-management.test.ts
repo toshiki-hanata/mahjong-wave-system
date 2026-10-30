@@ -33,7 +33,7 @@ function createMemoryDatabase(initial: { customer?: Record<string, unknown>; pro
       return Object.fromEntries(Object.keys(select).map((key) => [key, state.profile?.[key]]));
     }),
   };
-  const db = { $transaction: async <T>(callback: (tx: unknown) => Promise<T>) => callback({ customer, publicProfile, auditLog }), publicProfile };
+  const db = { $transaction: async <T>(callback: (tx: unknown) => Promise<T>) => callback({ customer, publicProfile, auditLog, $queryRaw: vi.fn(async () => [{ id: "store-a" }]) }), publicProfile };
   return { db: db as unknown as Pick<PrismaClient, "$transaction"> & Pick<PrismaClient, "publicProfile">, state, customer, publicProfile, auditLog };
 }
 

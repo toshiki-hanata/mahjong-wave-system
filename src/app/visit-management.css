@@ -1,4 +1,20 @@
 .visits-page{max-width:1180px}
+.quick-reception-form{display:flex;flex-direction:column;align-items:flex-start;gap:12px;margin-top:18px;max-width:760px}
+.quick-reception-form>label{font-size:14px;font-weight:600;color:#344139}
+.quick-reception-form>p,.reception-help,.reception-candidates>p{margin:0;color:#657168;font-size:13px;line-height:1.7}
+.quick-reception-form>input:not([type=hidden]){width:100%;min-width:0;min-height:48px;padding:12px;border:1px solid #d3ded5;border-radius:8px;background:white;color:#29342f;font:inherit;font-size:16px}
+.quick-reception-form>input:focus{outline:2px solid #78a888;border-color:#78a888;outline-offset:2px}
+.quick-reception-form .button,.reception-links .button{min-height:48px;font-size:14px;white-space:normal;text-align:center}
+.quick-reception-form .visit-action-error{color:#a04736}
+.reception-confirm{display:flex;align-items:flex-start;gap:10px;line-height:1.6}
+.reception-confirm input{width:22px;height:22px;flex-shrink:0;margin-top:1px}
+.reception-candidates{margin-top:20px;padding:14px;border:1px solid #ddc69e;border-radius:8px;background:#fffaf0}
+.reception-candidates h3{font-size:15px;margin:0 0 8px}
+.quick-reception-success{margin-top:18px;padding:16px;border:1px solid #a5c8af;border-radius:8px;background:#f0f7f2;color:#344139}
+.quick-reception-success p{overflow-wrap:anywhere}
+.quick-reception-success span{display:inline-block;font-size:13px;margin-left:8px}
+.reception-links{display:flex;flex-wrap:wrap;gap:12px;margin-top:14px}
+@media(max-width:520px){.visits-page .visit-customer-search input{font-size:16px;min-height:48px}.visits-page .visit-customer-search .button,.visits-page .visit-inline-action .button{min-height:48px;font-size:14px}.quick-reception-form{max-width:100%}.quick-reception-form .button,.reception-links,.reception-links .button{width:100%}.reception-links{flex-direction:column}.reception-confirm{font-size:13px}.reception-candidates{padding:12px}}
 .visit-dashboard-panel{padding:17px 18px;margin:-2px 0 16px}
 .visit-dashboard-panel .panel-heading{align-items:center}
 .visit-dashboard-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:14px}

@@ -10,7 +10,7 @@ export function CheckInButton({ customerId }: { customerId: string }) {
   if (state.success) return <p className="visit-action-result" role="status">{state.message}</p>;
   return <form action={action} className="visit-inline-action">
     <input type="hidden" name="customerId" value={customerId} />
-    <button className="button button-primary" type="submit" disabled={pending}>{pending ? "受付中…" : "チェックイン"}</button>
+    <button className="button button-primary" type="submit" disabled={pending}>{pending ? "受付中…" : "来店受付"}</button>
     {state.message && <p className="visit-action-error" role="alert">{state.message}</p>}
   </form>;
 }
@@ -19,7 +19,7 @@ export function CheckOutButton({ visitId }: { visitId: string }) {
   const [state, action, pending] = useActionState(checkOutVisitAction, emptyState);
   return <form action={action} className="visit-inline-action">
     <input type="hidden" name="visitId" value={visitId} />
-    <button className="button button-secondary" type="submit" disabled={pending}>{pending ? "処理中…" : "チェックアウト"}</button>
+    <button className="button button-secondary" type="submit" disabled={pending}>{pending ? "処理中…" : "退店する"}</button>
     {state.message && <p className="visit-action-error" role="alert">{state.message}</p>}
   </form>;
 }

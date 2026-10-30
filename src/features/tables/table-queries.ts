@@ -28,6 +28,7 @@ export async function getTablePageData(database: Pick<PrismaClient, "mahjongTabl
           where: { status: TableSessionStatus.ACTIVE }, take: 1,
           select: {
             id: true, startedAt: true,
+            _count: { select: { games: { where: { status: "CONFIRMED" } } } },
             seats: {
               where: { removedAt: null }, orderBy: { position: "asc" },
               select: { id: true, position: true, visitId: true, visit: { select: { status: true, customer: { select: { id: true, customerCode: true, internalName: true, isActive: true } } } } },
@@ -41,7 +42,7 @@ export async function getTablePageData(database: Pick<PrismaClient, "mahjongTabl
       orderBy: { checkedInAt: "asc" },
       select: { id: true, checkedInAt: true, customer: { select: { customerCode: true, internalName: true } } },
     }),
-    database.tableSession.findMany({ where: { storeId }, orderBy: { startedAt: "desc" }, take: 20, select: { id: true, status: true, startedAt: true, endedAt: true, mahjongTable: { select: { name: true } }, _count: { select: { games: true } } } }),
+    database.tableSession.findMany({ where: { storeId }, orderBy: { startedAt: "desc" }, take: 20, select: { id: true, status: true, startedAt: true, endedAt: true, mahjongTable: { select: { name: true } }, _count: { select: { games: { where: { status: "CONFIRMED" } } } } } }),
   ]);
   return { tables, waitingVisits, recentSessions };
 }

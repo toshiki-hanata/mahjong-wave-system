@@ -2,6 +2,7 @@ import "server-only";
 
 import { Prisma, VisitStatus, type PrismaClient } from "@prisma/client";
 import { recordAuditLog } from "@/lib/audit-log";
+import { lockBusinessStore, requireOpenBusinessDay } from "@/features/business-days/business-day-service";
 
 type TransactionDatabase = Pick<PrismaClient, "$transaction">;
 type VisitContext = { storeId: string; staffId: string };
@@ -127,59 +128,68 @@ export async function checkInVisit(
   context: VisitContext,
 ): Promise<string> {
   try {
-    return await database.$transaction(async (tx) => {
-      const customer = await lockCustomer(tx, customerId, context.storeId, true);
-      if (!customer) throw new VisitCustomerUnavailableError();
-
-      const openVisit = await tx.visit.findFirst({
-        where: {
-          storeId: context.storeId,
-          customerId,
-          status: { in: [VisitStatus.WAITING, VisitStatus.PLAYING] },
-        },
-        select: { id: true },
-      });
-      if (openVisit) throw new DuplicateOpenVisitError();
-
-      const checkedInAt = new Date();
-      const visit = await tx.visit.create({
-        data: {
-          storeId: context.storeId,
-          customerId,
-          checkedInAt,
-          status: VisitStatus.WAITING,
-        },
-        select: { id: true },
-      });
-
-      await tx.customer.update({
-        where: { id: customerId },
-        data: {
-          firstVisitAt: customer.firstVisitAt && customer.firstVisitAt < checkedInAt
-            ? customer.firstVisitAt
-            : checkedInAt,
-          lastVisitAt: customer.lastVisitAt && customer.lastVisitAt > checkedInAt
-            ? customer.lastVisitAt
-            : checkedInAt,
-        },
-      });
-
-      await recordAuditLog({
-        storeId: context.storeId,
-        actorStaffId: context.staffId,
-        action: "VISIT_CHECK_IN",
-        entityType: "Visit",
-        entityId: visit.id,
-        metadata: { customerId, status: VisitStatus.WAITING, checkedInAt: checkedInAt.toISOString() },
-      }, tx);
-
-      return visit.id;
-    });
+    return await database.$transaction((tx) => checkInVisitInTransaction(tx, customerId, context));
   } catch (error) {
     // The partial unique index is the final concurrency guard; this pre-check is only for UX.
     if (isUniqueViolation(error)) throw new DuplicateOpenVisitError();
     throw error;
   }
+}
+
+/** Also used by quick registration so a failed check-in rolls back the new customer. */
+export async function checkInVisitInTransaction(
+  tx: Prisma.TransactionClient,
+  customerId: string,
+  context: VisitContext,
+): Promise<string> {
+  const businessDay = await requireOpenBusinessDay(tx, context.storeId);
+  const customer = await lockCustomer(tx, customerId, context.storeId, true);
+  if (!customer) throw new VisitCustomerUnavailableError();
+
+  const openVisit = await tx.visit.findFirst({
+    where: {
+      storeId: context.storeId,
+      customerId,
+      status: { in: [VisitStatus.WAITING, VisitStatus.PLAYING] },
+    },
+    select: { id: true },
+  });
+  if (openVisit) throw new DuplicateOpenVisitError();
+
+  const checkedInAt = new Date();
+  const visit = await tx.visit.create({
+    data: {
+      storeId: context.storeId,
+      customerId,
+      businessDayId: businessDay.id,
+      checkedInAt,
+      status: VisitStatus.WAITING,
+    },
+    select: { id: true },
+  });
+
+  await tx.customer.update({
+    where: { id: customerId },
+    data: {
+      firstVisitAt: customer.firstVisitAt && customer.firstVisitAt < checkedInAt
+        ? customer.firstVisitAt
+        : checkedInAt,
+      lastVisitAt: customer.lastVisitAt && customer.lastVisitAt > checkedInAt
+        ? customer.lastVisitAt
+        : checkedInAt,
+    },
+  });
+
+  await recordAuditLog({
+    storeId: context.storeId,
+    actorStaffId: context.staffId,
+    action: "VISIT_CHECK_IN",
+    entityType: "Visit",
+    entityId: visit.id,
+    metadata: { customerId, status: VisitStatus.WAITING, checkedInAt: checkedInAt.toISOString() },
+  }, tx);
+
+  return visit.id;
 }
 
 export async function checkOutVisit(
@@ -188,6 +198,7 @@ export async function checkOutVisit(
   context: VisitContext,
 ): Promise<boolean> {
   return database.$transaction(async (tx) => {
+    await lockBusinessStore(tx, context.storeId);
     const initial = await tx.visit.findFirst({
       where: { id: visitId, storeId: context.storeId },
       select: { customerId: true },
@@ -233,6 +244,8 @@ export async function transitionVisitForTable(
   target: "WAITING" | "PLAYING",
 ): Promise<boolean> {
   return database.$transaction(async (tx) => {
+    if (target === "PLAYING") await requireOpenBusinessDay(tx, context.storeId);
+    else await lockBusinessStore(tx, context.storeId);
     const transitioned = await transitionSingleVisitInTransaction(tx, visitId, context, target);
     if (!transitioned) return false;
     await recordAuditLog({

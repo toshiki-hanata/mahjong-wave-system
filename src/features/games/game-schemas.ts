@@ -13,6 +13,8 @@ export const storeRuleSchema = z.object({
 
 export const gameInputSchema = z.object({
   tableSessionId: z.string().min(1),
+  expectedSequence: integer.min(1),
+  seatingToken: z.string().regex(/^[a-f0-9]{64}$/),
   idempotencyKey: z.string().uuid(),
   points: z.array(z.object({ position: integer.min(1).max(4), finalPoints: integer })).length(4),
 });

@@ -3,6 +3,8 @@ import "server-only";
 import { Prisma, GameStatus, TableSessionStatus, VisitStatus, type PrismaClient } from "@prisma/client";
 import { recordAuditLog } from "@/lib/audit-log";
 import { calculateGame, type GameRule, type ScoredPlayer } from "./game-calculation";
+import { lockBusinessStore, requireOpenBusinessDay } from "@/features/business-days/business-day-service";
+import { seatingToken } from "@/features/tables/seat-snapshot";
 
 type Database = Pick<PrismaClient, "$transaction">;
 type Context = { storeId: string; staffId: string };
@@ -14,6 +16,7 @@ export class GameSeatIntegrityError extends Error {}
 export class GameRuleUnavailableError extends Error {}
 export class GameIdempotencyConflictError extends Error {}
 export class GameNotCorrectableError extends Error {}
+export class GameEntryChangedError extends Error {}
 
 const ruleSelect = {
   id: true, version: true, startingPoints: true, returnPoints: true,
@@ -60,11 +63,12 @@ export async function createStoreRuleVersion(database: Database, input: RuleInpu
   });
 }
 
-export async function createGame(database: Database, input: { tableSessionId: string; idempotencyKey: string; points: PointInput }, context: Context): Promise<{ id: string; sequenceNumber: number; replayed: boolean }> {
+export async function createGame(database: Database, input: { tableSessionId: string; idempotencyKey: string; expectedSequence: number; seatingToken: string; points: PointInput }, context: Context): Promise<{ id: string; sequenceNumber: number; replayed: boolean }> {
   const submitted = normalizedPoints(input.points);
   return database.$transaction(async (tx) => {
-    const locked = await tx.$queryRaw<Array<{ id: string; storeId: string; status: TableSessionStatus; storeRuleId: string | null }>>`
-      SELECT "id", "storeId", "status", "storeRuleId" FROM "TableSession"
+    await lockBusinessStore(tx, context.storeId);
+    const locked = await tx.$queryRaw<Array<{ id: string; storeId: string; status: TableSessionStatus; storeRuleId: string | null; businessDayId: string | null }>>`
+      SELECT "id", "storeId", "status", "storeRuleId", "businessDayId" FROM "TableSession"
       WHERE "id" = ${input.tableSessionId} AND "storeId" = ${context.storeId} FOR UPDATE`;
     const session = locked[0];
     if (!session) throw new GameSessionUnavailableError();
@@ -74,19 +78,22 @@ export async function createGame(database: Database, input: { tableSessionId: st
     });
     if (existing) {
       const prior = [...existing.results].sort((a, b) => a.position - b.position);
-      if (prior.length !== submitted.length || prior.some((row, i) => row.position !== submitted[i]?.position || row.finalPoints !== submitted[i]?.finalPoints)) throw new GameIdempotencyConflictError();
+      if (existing.sequenceNumber !== input.expectedSequence || prior.length !== submitted.length || prior.some((row, i) => row.position !== submitted[i]?.position || row.finalPoints !== submitted[i]?.finalPoints)) throw new GameIdempotencyConflictError();
       return { id: existing.id, sequenceNumber: existing.sequenceNumber, replayed: true };
     }
     if (session.status !== TableSessionStatus.ACTIVE) throw new GameSessionUnavailableError();
+    const businessDay = await requireOpenBusinessDay(tx, context.storeId);
+    if (session.businessDayId !== businessDay.id) throw new GameSessionUnavailableError();
     const usingLegacySession = session.storeRuleId === null;
     const rule = await ensureSessionRule(tx, session, context.storeId);
     if (usingLegacySession) await recordAuditLog({ storeId: context.storeId, actorStaffId: context.staffId, action: "TABLE_SESSION_RULE_BIND", entityType: "TableSession", entityId: session.id, metadata: { ruleVersion: rule.version } }, tx);
     const seats = await tx.tableSeat.findMany({
       where: { storeId: context.storeId, tableSessionId: session.id, removedAt: null },
       orderBy: { position: "asc" },
-      select: { position: true, visitId: true, visit: { select: { id: true, storeId: true, customerId: true, status: true, customer: { select: { id: true, storeId: true, isActive: true } } } } },
+      select: { id: true, position: true, visitId: true, visit: { select: { id: true, storeId: true, customerId: true, status: true, customer: { select: { id: true, storeId: true, isActive: true } } } } },
     });
     if (seats.length !== 4 || ![1, 2, 3, 4].every((position) => seats.filter((seat) => seat.position === position).length === 1)) throw new GameSeatIntegrityError();
+    if (seatingToken(seats) !== input.seatingToken) throw new GameEntryChangedError();
     if (seats.some((seat) => seat.visit.status !== VisitStatus.PLAYING || !seat.visit.customer.isActive || seat.visit.storeId !== context.storeId || seat.visit.customer.storeId !== context.storeId)) throw new GameSeatIntegrityError();
     const positionInputs = submitted.map((point) => ({ ...point, seat: seats.find((seat) => seat.position === point.position) }));
     if (positionInputs.some((point) => !point.seat)) throw new GameSeatIntegrityError();
@@ -95,11 +102,13 @@ export async function createGame(database: Database, input: { tableSessionId: st
     const results = calculateGame(players, gameRule);
     const maxSequence = await tx.game.aggregate({ where: { storeId: context.storeId, tableSessionId: session.id }, _max: { sequenceNumber: true } });
     const sequenceNumber = (maxSequence._max.sequenceNumber ?? 0) + 1;
+    if (sequenceNumber !== input.expectedSequence) throw new GameEntryChangedError();
     const confirmedAt = new Date();
     const ruleSnapshot = { ...rule, calculationVersion: "POINTS_RETURN_UMA_OKA_V1", scoreUnit: `1.0 = ${rule.scorePointDivisor} points`, scoreFormula: "(finalPoints - returnPoints) / scorePointDivisor + umaByRank + topOka", capturedAt: new Date().toISOString() } satisfies Prisma.InputJsonObject;
     const game = await tx.game.create({
       data: {
         storeId: context.storeId, tableSessionId: session.id, storeRuleId: rule.id,
+        businessDayId: businessDay.id, freeGamePriceYen: businessDay.freeGamePriceYen,
         sequenceNumber, revisionNumber: 1, idempotencyKey: input.idempotencyKey,
         ruleSnapshot, createdByStaffId: context.staffId, confirmedAt, effectiveAt: confirmedAt,
         results: { create: results.map((result) => ({ visitId: result.visitId, customerId: result.customerId, position: result.position, finalPoints: result.finalPoints, rank: result.rank, scoreScaled: result.scoreScaled })) },
@@ -113,6 +122,7 @@ export async function createGame(database: Database, input: { tableSessionId: st
 export async function correctGame(database: Database, input: { gameId: string; idempotencyKey: string; reason: string; points: PointInput }, context: Context): Promise<{ id: string; sequenceNumber: number }> {
   const submitted = normalizedPoints(input.points);
   return database.$transaction(async (tx) => {
+    await lockBusinessStore(tx, context.storeId);
     const originalRef = await tx.game.findFirst({ where: { id: input.gameId, storeId: context.storeId }, select: { tableSessionId: true } });
     if (!originalRef) throw new GameNotCorrectableError();
     const sessionRows = await tx.$queryRaw<Array<{ id: string }>>`SELECT "id" FROM "TableSession" WHERE "id" = ${originalRef.tableSessionId} AND "storeId" = ${context.storeId} FOR UPDATE`;
@@ -135,6 +145,7 @@ export async function correctGame(database: Database, input: { gameId: string; i
     const game = await tx.game.create({
       data: {
         storeId: context.storeId, tableSessionId: original.tableSessionId, storeRuleId: original.storeRuleId,
+        businessDayId: original.businessDayId, freeGamePriceYen: original.freeGamePriceYen,
         sequenceNumber: original.sequenceNumber, revisionNumber: original.revisionNumber + 1, status: GameStatus.DRAFT,
         idempotencyKey: input.idempotencyKey, ruleSnapshot: original.ruleSnapshot as Prisma.InputJsonValue,
         createdByStaffId: context.staffId, effectiveAt: original.effectiveAt,

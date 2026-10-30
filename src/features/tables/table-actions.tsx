@@ -47,16 +47,20 @@ export function DeactivateTableForm({ tableId }: { tableId: string }) {
 export function StartTableForm({ tableId, waitingVisits }: { tableId: string; waitingVisits: WaitingVisit[] }) {
   const [state, action, pending] = useActionState(startTableSessionAction, initial);
   const [visitIds, setVisitIds] = useState(["", "", "", ""]);
-  const complete = visitIds.every(Boolean) && new Set(visitIds).size === 4;
+  const [query, setQuery] = useState("");
+  const complete = visitIds.every((id) => waitingVisits.some((visit) => visit.id === id)) && new Set(visitIds).size === 4;
+  const candidates = waitingVisits.filter((visit) => !visitIds.includes(visit.id) && `${visit.customer.internalName} ${visit.customer.customerCode}`.toLowerCase().includes(query.trim().toLowerCase()));
   return <form action={action} className="table-start-form">
     <input type="hidden" name="tableId" value={tableId} />
-    <div className="table-seat-picker">{[1, 2, 3, 4].map((position) => <label key={position}><span>物理位置 {position}</span>
-      <select name={`visitId${position}`} required value={visitIds[position - 1]} onChange={(event) => setVisitIds((current) => current.map((id, index) => index === position - 1 ? event.target.value : id))}>
-        <option value="">顧客を選択</option>
-        {waitingVisits.map((visit) => <option key={visit.id} value={visit.id}>{visit.customer.internalName} · {visit.customer.customerCode}</option>)}
-      </select>
-    </label>)}</div>
-    <button className="button button-primary table-start-button" disabled={pending || !complete || waitingVisits.length < 4}>{pending ? "開始中…" : "4人で卓を開始"}</button>
+    <p className="table-help">待機中のお客さんをタップすると、座席1から順に入ります。変更する場合は選択した名前を外してください。</p>
+    <div className="table-selected-seats">{[1, 2, 3, 4].map((position) => {
+      const visit = waitingVisits.find((item) => item.id === visitIds[position - 1]);
+      return <div key={position}><input type="hidden" name={`visitId${position}`} value={visitIds[position - 1]} /><span>座席 {position}</span><strong>{visit?.customer.internalName ?? (visitIds[position - 1] ? "状態が変わりました" : "未選択")}</strong>{visit && <small>{visit.customer.customerCode}</small>}{visitIds[position - 1] && <button type="button" disabled={pending} onClick={() => setVisitIds((current) => current.map((id, index) => index === position - 1 ? "" : id))} aria-label={`座席${position}の選択を外す`}>外す</button>}</div>;
+    })}</div>
+    <label className="table-waiting-search">待機客を探す<input type="search" value={query} disabled={pending} onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") event.preventDefault(); }} placeholder="名前・会員番号" /></label>
+    <div className="table-waiting-picker" aria-label="選択できる待機客">{candidates.map((visit) => <button type="button" key={visit.id} disabled={pending || visitIds.every(Boolean)} onClick={() => { setVisitIds((current) => { const next = [...current]; const empty = next.indexOf(""); if (empty >= 0) next[empty] = visit.id; return next; }); setQuery(""); }}><strong>{visit.customer.internalName}</strong><small>{visit.customer.customerCode}</small></button>)}</div>
+    {!candidates.length && <p className="table-help">{query ? "該当する待機客はいません。" : complete ? "4人を選択しました。座席を確認して開始してください。" : "選択できる待機客はいません。"}</p>}
+    <button className="button button-primary table-start-button" disabled={pending || !complete || waitingVisits.length < 4}>{pending ? "開始中…" : "この4人で卓を開始"}</button>
     {waitingVisits.length < 4 && <p className="table-help">開始には待機中の顧客が4人必要です。</p>}
     <ActionNotice state={state} />
   </form>;

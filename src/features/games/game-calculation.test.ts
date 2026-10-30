@@ -56,7 +56,8 @@ describe("provisional StoreRule game calculations", () => {
 
   it("validates StoreRule, idempotent game inputs, and correction reason", () => {
     expect(storeRuleSchema.safeParse({ ...rule, isProvisional: true }).success).toBe(true);
-    expect(gameInputSchema.safeParse({ tableSessionId: "session", idempotencyKey: "00000000-0000-4000-8000-000000000001", points: players.map(({ position, finalPoints }) => ({ position, finalPoints })) }).success).toBe(true);
+    expect(gameInputSchema.safeParse({ tableSessionId: "session", expectedSequence: 1, seatingToken: "a".repeat(64), idempotencyKey: "00000000-0000-4000-8000-000000000001", points: players.map(({ position, finalPoints }) => ({ position, finalPoints })) }).success).toBe(true);
+    expect(gameInputSchema.safeParse({ tableSessionId: "session", idempotencyKey: "00000000-0000-4000-8000-000000000001", points: players.map(({ position, finalPoints }) => ({ position, finalPoints })) }).success).toBe(false);
     expect(gameCorrectionSchema.safeParse({ gameId: "game", idempotencyKey: "00000000-0000-4000-8000-000000000002", reason: "入力誤り", points: players.map(({ position, finalPoints }) => ({ position, finalPoints })) }).success).toBe(true);
     expect(gameCorrectionSchema.safeParse({ gameId: "game", idempotencyKey: "00000000-0000-4000-8000-000000000002", reason: " ", points: players.map(({ position, finalPoints }) => ({ position, finalPoints })) }).success).toBe(false);
   });

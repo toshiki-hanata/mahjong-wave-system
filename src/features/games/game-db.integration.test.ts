@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { Prisma, PrismaClient, Role, GameStatus, TableSessionStatus, VisitStatus } from "@prisma/client";
 import { randomUUID } from "node:crypto";
 import { createGame, createStoreRuleVersion, correctGame, GameIdempotencyConflictError } from "./game-service";
+import { getGameEntryData } from "./game-queries";
 import { startTableSession } from "@/features/tables/table-service";
 import { assertConfiguredDatabaseTest } from "@/test/assert-db-test-config";
 
@@ -49,12 +50,14 @@ dbTests("Game integration uses a rollback-only development DB transaction", () =
       if (!rule) throw new Error("Development StoreRule migration seed required.");
       const adapter = savepointDatabase(tx);
       const context = { storeId: owner.storeId, staffId: owner.id };
+      const businessDay = await tx.businessDay.findFirst({ where: { storeId: owner.storeId, closedAt: null } });
+      if (!businessDay) throw new Error("Open a business day in the dedicated test database before running legacy game integration tests.");
       const table = await tx.mahjongTable.create({ data: { storeId: owner.storeId, name: `TEST GAME TABLE ${randomUUID()}`, sortOrder: 9999 } });
       const visits: Array<{ id: string }> = [];
       for (let index = 0; index < 4; index += 1) {
         const customer = await tx.customer.create({ data: { storeId: owner.storeId, customerCode: `GTEST-${randomUUID()}`, internalName: `TEST GAME CUSTOMER ${index + 1}` }, select: { id: true } });
         testCustomerIds.push(customer.id);
-        visits.push(await tx.visit.create({ data: { storeId: owner.storeId, customerId: customer.id, status: VisitStatus.WAITING }, select: { id: true } }));
+        visits.push(await tx.visit.create({ data: { storeId: owner.storeId, businessDayId: businessDay.id, customerId: customer.id, status: VisitStatus.WAITING }, select: { id: true } }));
       }
       const sessionId = await startTableSession(adapter, table.id, visits.map((visit, index) => ({ visitId: visit.id, position: index + 1 })), context);
       testSessionId = sessionId;
@@ -64,20 +67,22 @@ dbTests("Game integration uses a rollback-only development DB transaction", () =
 
       const key = randomUUID();
       const points = [40_000, 30_000, 20_000, 10_000].map((finalPoints, index) => ({ position: index + 1, finalPoints }));
-      const first = await createGame(adapter, { tableSessionId: sessionId, idempotencyKey: key, points }, context);
+      const entry = (await getGameEntryData(tx, context.storeId, sessionId))!;
+      const snapshot = { expectedSequence: entry.nextSequence, seatingToken: entry.seatingToken };
+      const first = await createGame(adapter, { ...snapshot, tableSessionId: sessionId, idempotencyKey: key, points }, context);
       expect(first.sequenceNumber).toBe(1);
       const firstGameTimes = await tx.game.findUniqueOrThrow({ where: { id: first.id }, select: { confirmedAt: true, effectiveAt: true } });
       expect(firstGameTimes.effectiveAt).toEqual(firstGameTimes.confirmedAt);
       expect(await tx.tableSession.findUniqueOrThrow({ where: { id: sessionId } })).toMatchObject({ storeRuleId: rule.id, status: TableSessionStatus.ACTIVE });
       expect(await tx.auditLog.count({ where: { storeId: owner.storeId, action: "TABLE_SESSION_RULE_BIND", entityId: sessionId } })).toBe(1);
-      expect(await createGame(adapter, { tableSessionId: sessionId, idempotencyKey: key, points: [...points].reverse() }, context)).toMatchObject({ id: first.id, replayed: true });
-      await expect(createGame(adapter, { tableSessionId: sessionId, idempotencyKey: key, points: points.map((point, index) => index ? point : { ...point, finalPoints: 39_900 }) }, context)).rejects.toBeInstanceOf(GameIdempotencyConflictError);
+      expect(await createGame(adapter, { ...snapshot, tableSessionId: sessionId, idempotencyKey: key, points: [...points].reverse() }, context)).toMatchObject({ id: first.id, replayed: true });
+      await expect(createGame(adapter, { ...snapshot, tableSessionId: sessionId, idempotencyKey: key, points: points.map((point, index) => index ? point : { ...point, finalPoints: 39_900 }) }, context)).rejects.toBeInstanceOf(GameIdempotencyConflictError);
 
       const version = await createStoreRuleVersion(adapter, { startingPoints: 25_000, returnPoints: 30_000, umaFirst: 20, umaSecond: 10, umaThird: -10, umaFourth: -20, okaTop: 20, pointUnit: 100, requiredTotal: 100_000, allowNegative: true, tieBreakRule: "POSITION_ASC", scorePointDivisor: 1000, scorePrecision: 1, roundingMode: "NONE", isProvisional: true }, context);
       expect(version).toBe(rule.version + 1);
-      const second = await createGame(adapter, { tableSessionId: sessionId, idempotencyKey: randomUUID(), points }, context);
+      const second = await createGame(adapter, { ...snapshot, expectedSequence: 2, tableSessionId: sessionId, idempotencyKey: randomUUID(), points }, context);
       expect(second.sequenceNumber).toBe(2);
-      const third = await createGame(adapter, { tableSessionId: sessionId, idempotencyKey: randomUUID(), points }, context);
+      const third = await createGame(adapter, { ...snapshot, expectedSequence: 3, tableSessionId: sessionId, idempotencyKey: randomUUID(), points }, context);
       expect(third.sequenceNumber).toBe(3);
       expect(await tx.gamePlayerResult.count({ where: { gameId: first.id } })).toBe(4);
       expect(await tx.gamePlayerResult.count({ where: { gameId: second.id } })).toBe(4);
@@ -100,11 +105,11 @@ dbTests("Game integration uses a rollback-only development DB transaction", () =
       expect(await tx.auditLog.count({ where: { storeId: owner.storeId, entityId: first.id, action: "GAME_RESULT_CREATE" } })).toBe(1);
       expect(await tx.tableSession.count({ where: { id: sessionId, storeId: owner.storeId, status: TableSessionStatus.ACTIVE } })).toBe(1);
       expect(await tx.visit.count({ where: { id: { in: visits.map((visit) => visit.id) }, storeId: owner.storeId, status: VisitStatus.PLAYING } })).toBe(4);
-      await expect(createGame(adapter, { tableSessionId: sessionId, idempotencyKey: randomUUID(), points }, { storeId: `other-${randomUUID()}`, staffId: owner.id })).rejects.toThrow();
+      await expect(createGame(adapter, { ...snapshot, tableSessionId: sessionId, idempotencyKey: randomUUID(), points }, { storeId: `other-${randomUUID()}`, staffId: owner.id })).rejects.toThrow();
 
       const gameCountBeforeFailure = await tx.game.count({ where: { tableSessionId: sessionId } });
       const auditCountBeforeFailure = await tx.auditLog.count({ where: { storeId: owner.storeId, action: "GAME_RESULT_CREATE" } });
-      await expect(createGame(savepointDatabase(tx, true), { tableSessionId: sessionId, idempotencyKey: randomUUID(), points }, context)).rejects.toMatchObject(rollbackMarker);
+      await expect(createGame(savepointDatabase(tx, true), { ...snapshot, expectedSequence: 4, tableSessionId: sessionId, idempotencyKey: randomUUID(), points }, context)).rejects.toMatchObject(rollbackMarker);
       expect(await tx.game.count({ where: { tableSessionId: sessionId } })).toBe(gameCountBeforeFailure);
       expect(await tx.auditLog.count({ where: { storeId: owner.storeId, action: "GAME_RESULT_CREATE" } })).toBe(auditCountBeforeFailure);
       throw rollbackMarker;

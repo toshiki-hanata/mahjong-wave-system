@@ -8,12 +8,40 @@ import { tableManagementRoles, tableOperationRoles } from "@/features/tables/tab
 import { InvalidVisitTransitionError, VisitCustomerUnavailableError } from "@/features/visits/visit-service";
 import { createTableSchema, deactivateTableSchema, endTableSessionSchema, startTableSessionSchema, updateTableSchema } from "@/features/tables/table-schemas";
 import { createTable, deactivateTable, endTableSession, InvalidSeatAssignmentError, InvalidTableSessionStateError, startTableSession, StoreRuleUnavailableError, TableHasActiveSessionError, TableNotAvailableError, TableSessionConflictError, TableSessionNotFoundError, updateTable } from "@/features/tables/table-service";
+import { BusinessDayClosedError, BusinessDayNotFoundError } from "@/features/business-days/business-day-service";
+import { changeTableMembersSchema } from "@/features/tables/table-schemas";
+import { changeTableMembers, TableMembersChangedError, TableMemberUnavailableError } from "@/features/tables/table-members-service";
 
 export type TableActionState = { message?: string; success?: boolean };
 
 function revalidateTables() {
   revalidatePath("/admin/tables");
   revalidatePath("/admin");
+  revalidatePath("/admin/business-days");
+  revalidatePath("/admin/visits");
+  revalidatePath("/admin/tables/[tableSessionId]/games/new", "page");
+}
+
+export async function changeTableMembersAction(_previous: TableActionState, formData: FormData): Promise<TableActionState> {
+  const staff = await requireRole(tableOperationRoles);
+  if (formData.get("confirmed") !== "on") return { message: "前の半荘結果の入力を確認してください。" };
+  const parsed = changeTableMembersSchema.safeParse({
+    sessionId: formData.get("sessionId"), requestKey: formData.get("requestKey"), seatingToken: formData.get("seatingToken"), expectedSequence: Number(formData.get("expectedSequence")), mode: formData.get("mode"), position: Number(formData.get("position")),
+    incomingVisitId: formData.get("incomingVisitId") || undefined,
+    otherPosition: formData.has("otherPosition") ? Number(formData.get("otherPosition")) : undefined,
+  });
+  if (!parsed.success) return { message: parsed.error.issues[0]?.message ?? "座席と交代するお客さんを確認してください。" };
+  if (!prisma) return { message: "データベースへ接続できません。" };
+  try { await changeTableMembers(prisma, parsed.data, { storeId: staff.storeId, staffId: staff.id }); }
+  catch (error) {
+    if (error instanceof TableMembersChangedError) return { message: "別の操作で席・半荘番号が変わりました。画面を更新して確認してください。" };
+    if (error instanceof TableMemberUnavailableError) return { message: "今回の営業で待機中の有効なお客さんを選択してください。" };
+    if (error instanceof BusinessDayClosedError || error instanceof BusinessDayNotFoundError) return { message: "現在の営業状態を確認してください。" };
+    if (error instanceof Prisma.PrismaClientKnownRequestError) return { message: "状態が変わったため変更できませんでした。画面を更新して確認してください。" };
+    throw error;
+  }
+  revalidateTables();
+  return { success: true, message: "席を変更しました。次の半荘から新しい席で入力できます。" };
 }
 
 export async function createTableAction(_previous: TableActionState, formData: FormData): Promise<TableActionState> {
@@ -72,6 +100,8 @@ export async function startTableSessionAction(_previous: TableActionState, formD
   if (!prisma) return { message: "データベースへ接続できません。" };
   try { await startTableSession(prisma, parsed.data.tableId, parsed.data.seats, { storeId: staff.storeId, staffId: staff.id }); }
   catch (error) {
+    if (error instanceof BusinessDayClosedError || error instanceof BusinessDayNotFoundError) return { message: "先に「営業開始・終了」画面から営業を開始してください。" };
+    if (error instanceof InvalidTableSessionStateError) return { message: "今回の営業で受け付けたお客さんを選択してください。" };
     if (error instanceof TableNotAvailableError) return { message: "有効な空き卓が見つかりません。" };
     if (error instanceof TableSessionConflictError) return { message: "卓または選択した顧客はすでに使用中です。最新の状態を確認してください。" };
     if (error instanceof InvalidSeatAssignmentError) return { message: "席と4人の選択を確認してください。" };

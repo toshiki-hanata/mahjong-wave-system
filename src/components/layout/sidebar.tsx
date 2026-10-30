@@ -6,9 +6,10 @@ import { logoutAction } from "@/app/admin/actions";
 
 const navigation: Array<{ label: string; icon: string; href: string; count?: string }> = [
   { label: "ダッシュボード", icon: "◈", href: "/admin" },
+  { label: "営業開始・終了", icon: "◷", href: "/admin/business-days" },
   { label: "卓・対局", icon: "▦", href: "/admin/tables" },
   { label: "顧客管理", icon: "♙", href: "/admin/customers" },
-  { label: "来店管理", icon: "●", href: "/admin/visits" },
+  { label: "受付・来店中", icon: "●", href: "/admin/visits" },
   { label: "会計", icon: "￥", href: "#accounting" },
 ];
 
@@ -25,7 +26,7 @@ export function Sidebar({ storeName, staffName, role, canManageStaff }: { storeN
       <nav className="main-nav" aria-label="メインメニュー">
         <p className="nav-label">WORKSPACE</p>
         {navigation.map((item) => {
-          const active = item.href === "/admin" ? pathname === "/admin" : item.href === "/admin/customers" ? pathname.startsWith("/admin/customers") : item.href === "/admin/visits" ? pathname.startsWith("/admin/visits") : item.href === "/admin/tables" ? pathname.startsWith("/admin/tables") : false;
+          const active = item.href.startsWith("/admin") && (item.href === "/admin" ? pathname === "/admin" : pathname.startsWith(item.href));
           return <a key={item.label} className={`nav-item${active ? " active" : ""}`} href={item.href} onClick={() => setOpen(false)}><span className="nav-icon">{item.icon}</span>{item.label}{item.count && <span className="nav-count">{item.count}</span>}</a>;
         })}
         <p className="nav-label nav-label-spaced">ANALYTICS</p>
