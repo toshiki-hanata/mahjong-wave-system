@@ -105,6 +105,8 @@ model Store {
   gameResults      GamePlayerResult[]
   businessDays     BusinessDay[]
   pointLedgerEntries PointLedgerEntry[]
+  customerAuthIdentities CustomerAuthIdentity[]
+  customerPairings CustomerPairing[]
 }
 
 model Staff {
@@ -128,6 +130,8 @@ model Staff {
   businessDaysClosed BusinessDay[] @relation("BusinessDayClosedBy")
   participantProfile Customer? @relation("StaffParticipantProfile")
   pointLedgerEntries PointLedgerEntry[]
+  pairingsIssued CustomerPairing[] @relation("PairingIssuedBy")
+  pairingsConfirmed CustomerPairing[] @relation("PairingConfirmedBy")
 
   @@unique([loginId])
   @@unique([storeId, id])
@@ -194,10 +198,55 @@ model Customer {
   pointLedgerEntries PointLedgerEntry[]
 
   @@unique([storeId, customerCode])
+  authIdentity CustomerAuthIdentity?
+  authPairings CustomerPairing[]
   @@unique([storeId, participantStaffId])
   @@unique([storeId, id])
   @@index([storeId, isActive, internalName])
   @@index([storeId, createdAt])
+}
+
+model CustomerAuthIdentity {
+  id String @id @default(cuid())
+  storeId String
+  customerId String
+  userHandle String @unique @default(uuid()) @db.VarChar(64)
+  activatedAt DateTime? @db.Timestamptz(3)
+  authVersion Int @default(0)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  store Store @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  customer Customer @relation(fields: [storeId, customerId], references: [storeId, id], onDelete: Restrict)
+  pairings CustomerPairing[]
+  @@unique([storeId, customerId])
+  @@unique([storeId, id])
+}
+
+model CustomerPairing {
+  id String @id @default(cuid())
+  storeId String
+  customerId String
+  issuedByStaffId String
+  confirmedByStaffId String?
+  requestKey String @db.VarChar(36)
+  tokenHash String @unique @db.VarChar(64)
+  claimHash String? @unique @db.VarChar(64)
+  confirmationCode String? @db.VarChar(6)
+  failedClaims Int @default(0)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  expiresAt DateTime @db.Timestamptz(3)
+  claimedAt DateTime? @db.Timestamptz(3)
+  staffConfirmedAt DateTime? @db.Timestamptz(3)
+  customerConfirmedAt DateTime? @db.Timestamptz(3)
+  completedAt DateTime? @db.Timestamptz(3)
+  cancelledAt DateTime? @db.Timestamptz(3)
+  store Store @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  customer Customer @relation(fields: [storeId, customerId], references: [storeId, id], onDelete: Restrict)
+  identity CustomerAuthIdentity @relation(fields: [storeId, customerId], references: [storeId, customerId], onDelete: Restrict, map: "CustomerPairing_identity_fkey")
+  issuedBy Staff @relation("PairingIssuedBy", fields: [storeId, issuedByStaffId], references: [storeId, id], onDelete: Restrict)
+  confirmedBy Staff? @relation("PairingConfirmedBy", fields: [storeId, confirmedByStaffId], references: [storeId, id], onDelete: Restrict)
+  @@unique([storeId, requestKey])
+  @@index([storeId, customerId, createdAt])
+  @@index([storeId, issuedByStaffId, createdAt])
 }
 
 model PointLedgerEntry {

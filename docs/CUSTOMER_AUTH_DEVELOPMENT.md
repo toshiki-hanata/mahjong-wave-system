@@ -28,7 +28,7 @@
 
 ## パスキー実装の準備
 
-SimpleWebAuthnのサーバー・ブラウザー用ライブラリを候補に公式仕様とnpmの配布情報を確認した。ライブラリ導入と登録／認証、顧客Cookie、QR、復旧の実装・検証は後続タスク。設定が存在するだけで認証が利用可能になったとは扱わない。
+SimpleWebAuthnのサーバー・ブラウザー用ライブラリを候補に公式仕様とnpmの配布情報を確認した。ライブラリ導入と登録／認証、顧客セッションCookie・復旧は後続タスク。初回連携QRと読取用の期限付きCookieは[C03](CUSTOMER_PAIRING.md)で実装したが、認証済みセッションではない。設定が存在するだけで認証が利用可能になったとは扱わない。
 
 参考：[サーバー側の公式仕様](https://simplewebauthn.dev/docs/packages/server)、[パスキーの公式設計資料](https://simplewebauthn.dev/docs/advanced/passkeys/)。
 

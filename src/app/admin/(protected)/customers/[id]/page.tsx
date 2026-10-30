@@ -51,6 +51,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
       <div className="form-span"><dt>内部メモ</dt><dd className="customer-note">{customer.note || "メモはありません"}</dd></div>
     </dl></section>
     <p><Link className="button button-secondary" href={`/admin/customers/${encodeURIComponent(customer.id)}/points`}>特典ポイントの残高・履歴へ</Link></p>
+    {customer.isActive && <p><Link className="button button-secondary" href={`/admin/customers/${encodeURIComponent(customer.id)}/link`}>この会員のスマホ連携へ</Link></p>}
     <section className="panel customer-info-panel"><h2>公開プロフィール設定</h2>{customer.publicProfile ? <dl className="customer-info-grid"><div><dt>公開ニックネーム</dt><dd>{customer.publicProfile.nickname}</dd></div><div><dt>ランキング参加</dt><dd>{customer.publicProfile.rankingOptIn ? "参加中" : "不参加"}</dd></div><div><dt>プロフィール表示</dt><dd>{customer.publicProfile.profileVisible ? "公開" : "非公開"}</dd></div></dl> : <p className="customer-empty-inline">公開プロフィールは登録されていません。</p>}</section>
     <div className="performance-section-heading"><div><p className="eyebrow">PERSONAL PERFORMANCE</p><h2>個人成績</h2></div><Link className="text-link" href={`/admin/rankings?period=all&metric=scoreTotal`}>通算ランキングを見る →</Link></div>
     <PerformanceSection title="通算成績" stats={performance.allTime} />
