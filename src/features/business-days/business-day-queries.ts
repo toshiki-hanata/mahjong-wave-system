@@ -20,7 +20,7 @@ export async function getBusinessDayPageData(database: PrismaClient | null, stor
       select: { id: true, entityId: true, createdAt: true, metadata: true, actor: { select: { name: true } } },
     }) : [];
     const games = await tx.game.groupBy({ by: ["businessDayId", "tableSessionId", "freeGamePriceYen"], where: { storeId, businessDayId: { in: ids }, status: "CONFIRMED" }, _count: { _all: true } });
-    const visits = await tx.visit.groupBy({ by: ["businessDayId", "customerId"], where: { storeId, businessDayId: { in: ids } }, _count: { _all: true } });
+    const visits = await tx.visit.groupBy({ by: ["businessDayId", "customerId"], where: { storeId, businessDayId: { in: ids }, customer: { is: { participantStaffId: null } } }, _count: { _all: true } });
     const sessions = await tx.tableSession.findMany({ where: { storeId, businessDayId: { in: ids } }, select: { id: true, mahjongTableId: true, mahjongTable: { select: { name: true } } } });
     const store = await tx.store.findUnique({ where: { id: storeId }, select: { freeGamePriceYen: true } });
     const openVisits = await tx.visit.count({ where: { storeId, status: { in: ["WAITING", "PLAYING"] } } });

@@ -120,6 +120,7 @@ model Staff {
   gamesCorrected    Game[]      @relation("GameCorrectedBy")
   businessDaysOpened BusinessDay[] @relation("BusinessDayOpenedBy")
   businessDaysClosed BusinessDay[] @relation("BusinessDayClosedBy")
+  participantProfile Customer? @relation("StaffParticipantProfile")
 
   @@unique([loginId])
   @@unique([storeId, id])
@@ -168,6 +169,7 @@ model Customer {
   storeId      String
   customerCode String
   internalName String
+  participantStaffId String?
   note         String?
   firstVisitAt DateTime?
   lastVisitAt  DateTime?
@@ -176,12 +178,14 @@ model Customer {
   updatedAt    DateTime  @updatedAt
 
   store            Store              @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  participantStaff Staff? @relation("StaffParticipantProfile", fields: [storeId, participantStaffId], references: [storeId, id], onDelete: Restrict)
   publicProfile    PublicProfile?
   campaignProgress CampaignProgress[]
   visits           Visit[]
   gameResults      GamePlayerResult[]
 
   @@unique([storeId, customerCode])
+  @@unique([storeId, participantStaffId])
   @@unique([storeId, id])
   @@index([storeId, isActive, internalName])
   @@index([storeId, createdAt])

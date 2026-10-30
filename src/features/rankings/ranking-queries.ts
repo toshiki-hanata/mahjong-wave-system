@@ -1,3 +1,4 @@
+import { customerRankingParticipantFilter } from "@/features/staff-participation/participant-policy";
 import "server-only";
 
 import { GameStatus, type PrismaClient } from "@prisma/client";
@@ -11,7 +12,7 @@ export function buildEffectiveResultWhere(storeId: string, customerId?: string, 
   return {
     storeId,
     ...(customerId ? { customerId } : {}),
-    ...(activeCustomersOnly ? { customer: { is: { storeId, isActive: true } } } : {}),
+    ...(activeCustomersOnly ? { customer: { is: { storeId, isActive: true, ...customerRankingParticipantFilter() } } } : {}),
     game: {
       is: {
         storeId,
@@ -52,7 +53,7 @@ export async function getStoreRankingData(
   const minimumGames = minimumFor(periodKind, settings);
   const [customers, resultRows] = await Promise.all([
     database.customer.findMany({
-      where: { storeId, isActive: true },
+      where: { storeId, isActive: true, ...customerRankingParticipantFilter() },
       select: { id: true, internalName: true, isActive: true },
       orderBy: [{ internalName: "asc" }, { id: "asc" }],
     }),
@@ -84,7 +85,7 @@ export async function getCustomerPerformance(
 ) {
   if (!database) return null;
   const customer = await database.customer.findFirst({
-    where: { id: customerId, storeId },
+    where: { id: customerId, storeId, participantStaffId: null },
     select: { id: true, internalName: true, customerCode: true, isActive: true },
   });
   if (!customer) return null;

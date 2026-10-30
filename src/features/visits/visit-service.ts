@@ -3,6 +3,7 @@ import "server-only";
 import { Prisma, VisitStatus, type PrismaClient } from "@prisma/client";
 import { recordAuditLog } from "@/lib/audit-log";
 import { lockBusinessStore, requireOpenBusinessDay } from "@/features/business-days/business-day-service";
+import { staffParticipantsAreActive } from "@/features/staff-participation/participant-availability";
 
 type TransactionDatabase = Pick<PrismaClient, "$transaction">;
 type VisitContext = { storeId: string; staffId: string };
@@ -34,8 +35,8 @@ async function lockCustomer(
   requireActive: boolean,
 ) {
   const activeClause = requireActive ? Prisma.sql`AND "isActive" = true` : Prisma.empty;
-  const rows = await tx.$queryRaw<Array<{ id: string; firstVisitAt: Date | null; lastVisitAt: Date | null }>>`
-    SELECT "id", "firstVisitAt", "lastVisitAt"
+  const rows = await tx.$queryRaw<Array<{ id: string; firstVisitAt: Date | null; lastVisitAt: Date | null; participantStaffId: string | null }>>`
+    SELECT "id", "firstVisitAt", "lastVisitAt", "participantStaffId"
     FROM "Customer"
     WHERE "id" = ${customerId} AND "storeId" = ${storeId} ${activeClause}
     FOR UPDATE
@@ -43,7 +44,7 @@ async function lockCustomer(
   return rows[0] ?? null;
 }
 
-type LockedVisit = { id: string; status: VisitStatus; customerIsActive: boolean };
+type LockedVisit = { id: string; status: VisitStatus; customerIsActive: boolean; participantStaffId: string | null };
 
 async function lockVisitRows(
   tx: Prisma.TransactionClient,
@@ -51,7 +52,7 @@ async function lockVisitRows(
   storeId: string,
 ): Promise<LockedVisit[]> {
   return tx.$queryRaw<LockedVisit[]>`
-    SELECT v."id", v."status", c."isActive" AS "customerIsActive"
+    SELECT v."id", v."status", c."isActive" AS "customerIsActive", c."participantStaffId"
     FROM "Visit" v
     JOIN "Customer" c ON c."id" = v."customerId" AND c."storeId" = v."storeId"
     WHERE v."id" IN (${Prisma.join(visitIds)}) AND v."storeId" = ${storeId}
@@ -94,6 +95,7 @@ export async function lockAndValidateVisitsForTableInTransaction(
   if (requireActiveCustomer && rows.some((row) => !row.customerIsActive)) {
     throw new VisitCustomerUnavailableError();
   }
+  if (requireActiveCustomer && !await staffParticipantsAreActive(tx, context.storeId, rows.map((row) => row.participantStaffId))) throw new VisitCustomerUnavailableError();
   if (rows.some((row) => row.status !== expected)) throw new InvalidVisitTransitionError();
 }
 
@@ -110,6 +112,7 @@ async function transitionSingleVisitInTransaction(
   if (!currentVisit) return null;
   const customer = await lockCustomer(tx, currentVisit.customerId, context.storeId, target === "PLAYING");
   if (!customer && target === "PLAYING") throw new VisitCustomerUnavailableError();
+  if (target === "PLAYING" && customer?.participantStaffId && !await staffParticipantsAreActive(tx, context.storeId, [customer.participantStaffId])) throw new VisitCustomerUnavailableError();
   if (currentVisit.status !== (target === "PLAYING" ? VisitStatus.WAITING : VisitStatus.PLAYING)) {
     throw new InvalidVisitTransitionError();
   }
@@ -141,10 +144,12 @@ export async function checkInVisitInTransaction(
   tx: Prisma.TransactionClient,
   customerId: string,
   context: VisitContext,
+  options: { allowStaffParticipant?: boolean } = {},
 ): Promise<string> {
   const businessDay = await requireOpenBusinessDay(tx, context.storeId);
   const customer = await lockCustomer(tx, customerId, context.storeId, true);
   if (!customer) throw new VisitCustomerUnavailableError();
+  if (customer.participantStaffId && (!options.allowStaffParticipant || !await staffParticipantsAreActive(tx, context.storeId, [customer.participantStaffId]))) throw new VisitCustomerUnavailableError();
 
   const openVisit = await tx.visit.findFirst({
     where: {

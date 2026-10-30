@@ -15,11 +15,11 @@ export function CheckInButton({ customerId }: { customerId: string }) {
   </form>;
 }
 
-export function CheckOutButton({ visitId }: { visitId: string }) {
+export function CheckOutButton({ visitId, label = "退店する" }: { visitId: string; label?: string }) {
   const [state, action, pending] = useActionState(checkOutVisitAction, emptyState);
   return <form action={action} className="visit-inline-action">
     <input type="hidden" name="visitId" value={visitId} />
-    <button className="button button-secondary" type="submit" disabled={pending}>{pending ? "処理中…" : "退店する"}</button>
+    <button className="button button-secondary" type="submit" disabled={pending}>{pending ? "処理中…" : label}</button>
     {state.message && <p className="visit-action-error" role="alert">{state.message}</p>}
   </form>;
 }

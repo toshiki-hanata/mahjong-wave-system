@@ -1,3 +1,4 @@
+import { staffParticipantsAreActive } from "@/features/staff-participation/participant-availability";
 import "server-only";
 import { Prisma, type PrismaClient } from "@prisma/client";
 import { recordAuditLog } from "@/lib/audit-log";
@@ -39,8 +40,8 @@ export async function changeTableMembers(database: Pick<PrismaClient, "$transact
     if (input.mode === "replace") {
       const incomingVisitId = input.incomingVisitId!;
       if (seats.some((seat) => seat.visitId === incomingVisitId)) throw new TableMemberUnavailableError();
-      const visits = await tx.$queryRaw<Array<{ id: string; status: string; businessDayId: string | null; customerIsActive: boolean }>>`
-        SELECT v."id", v."status", v."businessDayId", c."isActive" AS "customerIsActive"
+      const visits = await tx.$queryRaw<Array<{ id: string; status: string; businessDayId: string | null; customerIsActive: boolean; participantStaffId: string | null }>>`
+        SELECT v."id", v."status", v."businessDayId", c."isActive" AS "customerIsActive", c."participantStaffId"
         FROM "Visit" v JOIN "Customer" c ON c."id" = v."customerId" AND c."storeId" = v."storeId"
         WHERE v."storeId" = ${context.storeId} AND v."id" IN (${Prisma.join([outgoing.visitId, incomingVisitId])})
         ORDER BY v."id" FOR UPDATE OF v, c
@@ -48,6 +49,7 @@ export async function changeTableMembers(database: Pick<PrismaClient, "$transact
       const oldVisit = visits.find((visit) => visit.id === outgoing.visitId);
       const incoming = visits.find((visit) => visit.id === incomingVisitId);
       if (oldVisit?.status !== "PLAYING" || oldVisit.businessDayId !== day.id || incoming?.status !== "WAITING" || incoming.businessDayId !== day.id || !incoming.customerIsActive) throw new TableMemberUnavailableError();
+      if (!await staffParticipantsAreActive(tx, context.storeId, [incoming.participantStaffId])) throw new TableMemberUnavailableError();
       const retired = await tx.tableSeat.updateMany({ where: { id: outgoing.id, storeId: context.storeId, removedAt: null }, data: { removedAt: new Date() } });
       const released = await tx.visit.updateMany({ where: { id: outgoing.visitId, storeId: context.storeId, status: "PLAYING" }, data: { status: "WAITING" } });
       const joined = await tx.visit.updateMany({ where: { id: incomingVisitId, storeId: context.storeId, status: "WAITING" }, data: { status: "PLAYING" } });

@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { changeStaffPassword, revokeStaffSessions, setStaffActive } from "./staff-security-service";
 
+vi.mock("@/features/business-days/business-day-service", () => ({ lockBusinessStore: vi.fn() }));
+
 describe("staff session revocation", () => {
   it("increments only a staff row scoped to the authenticated store and audits the revoke", async () => {
     const updateMany = vi.fn(async (args: { where: Record<string, unknown>; data: Record<string, unknown> }) => { void args; return { count: 1 }; });

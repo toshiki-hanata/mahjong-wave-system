@@ -1,3 +1,4 @@
+import { participantName, participantCode } from "@/features/staff-participation/participant-policy";
 import { Role } from "@prisma/client";
 import { CreateTableForm, DeactivateTableForm, EndTableForm, StartTableForm, TableMasterForm } from "@/features/tables/table-actions";
 import { getTablePageData } from "@/features/tables/table-queries";
@@ -48,11 +49,11 @@ export default async function TablesPage({ searchParams }: { searchParams: Promi
             {session ? <>
               <div className="physical-seat-grid">{[1, 2, 3, 4].map((position) => {
                 const seat = seats.find((item) => item.position === position);
-                return <div className="physical-seat" key={position}><span>座席 {position}</span>{seat ? <><strong>{seat.visit.customer.internalName}</strong><small>{seat.visit.customer.customerCode}</small></> : <strong className="seat-missing">空席情報なし</strong>}</div>;
+                return <div className="physical-seat" key={position}><span>座席 {position}</span>{seat ? <><strong>{participantName(seat.visit.customer)}</strong><small>{participantCode(seat.visit.customer)}</small></> : <strong className="seat-missing">空席情報なし</strong>}</div>;
               })}</div>
               <div className="table-game-links"><a className="button button-primary" href={`/admin/tables/${session.id}/games/new`}>半荘結果を入力</a><a className="button button-secondary" href={`/admin/tables/${session.id}/games`}>半荘履歴</a></div>
               <p className="table-help">確定済み {session._count.games}本</p>
-              <details className="table-start-details"><summary>1人交代・席替え</summary><MemberChangeForm key={`${seatingToken(seats)}-${session._count.games}`} sessionId={session.id} requestKey={randomUUID()} seatingToken={seatingToken(seats)} expectedSequence={session._count.games + 1} seats={seats.map((seat) => ({ position: seat.position, name: seat.visit.customer.internalName }))} waitingVisits={waitingVisits} /></details>
+              <details className="table-start-details"><summary>1人交代・席替え</summary><MemberChangeForm key={`${seatingToken(seats)}-${session._count.games}`} sessionId={session.id} requestKey={randomUUID()} seatingToken={seatingToken(seats)} expectedSequence={session._count.games + 1} seats={seats.map((seat) => ({ position: seat.position, name: participantName(seat.visit.customer) }))} waitingVisits={waitingVisits} /></details>
               <EndTableForm sessionId={session.id} />
             </> : table.isActive ? <details className="table-start-details"><summary>待機客を選んで開始</summary><StartTableForm tableId={table.id} waitingVisits={waitingVisits.map((visit) => ({ ...visit, checkedInAt: visit.checkedInAt.toISOString() }))} /></details> : <p className="table-help">無効化されています。</p>}
             {canManage && <details className="table-master-details"><summary>卓マスタを編集</summary><TableMasterForm table={table} />{table.isActive && <DeactivateTableForm tableId={table.id} />}</details>}
@@ -62,8 +63,8 @@ export default async function TablesPage({ searchParams }: { searchParams: Promi
     </section>
 
     <section className="panel waiting-panel" aria-labelledby="waiting-visits-title">
-      <div className="table-section-heading"><div><h2 id="waiting-visits-title">待機中の顧客</h2><p>卓開始フォームで席へ割り当てます。チェックアウトは来店管理画面から行います。</p></div><span className="waiting-total"><strong>{waitingVisits.length}</strong> 名</span></div>
-      {waitingVisits.length === 0 ? <p className="table-empty-state">待機中の顧客はいません。</p> : <ul className="waiting-visit-list">{waitingVisits.map((visit) => <li key={visit.id}><div><strong>{visit.customer.internalName}</strong><span>{visit.customer.customerCode}</span></div><time dateTime={visit.checkedInAt.toISOString()}>{formatVisitDateTime(visit.checkedInAt, staff.storeTimezone)}</time></li>)}</ul>}
+      <div className="table-section-heading"><div><h2 id="waiting-visits-title">待機中のお客さん・スタッフ</h2><p>卓開始フォームで席へ割り当てます。チェックアウトは来店管理画面から行います。</p></div><span className="waiting-total"><strong>{waitingVisits.length}</strong> 名</span></div>
+      {waitingVisits.length === 0 ? <p className="table-empty-state">待機中のお客さん・スタッフはいません。</p> : <ul className="waiting-visit-list">{waitingVisits.map((visit) => <li key={visit.id}><div><strong>{participantName(visit.customer)}</strong><span>{participantCode(visit.customer)}</span></div><time dateTime={visit.checkedInAt.toISOString()}>{formatVisitDateTime(visit.checkedInAt, staff.storeTimezone)}</time></li>)}</ul>}
     </section>
 
     <details className="panel game-session-history table-history-details"><summary>最近の卓利用・半荘履歴</summary><div className="table-section-heading"><div><h2>最近の卓利用</h2><p>終了した卓の半荘履歴も確認できます。</p></div>{canManage && <a className="text-link" href="/admin/store-rules">半荘ルール設定 →</a>}</div>

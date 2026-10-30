@@ -15,7 +15,7 @@ export async function getGameEntryData(database: Pick<PrismaClient, "tableSessio
     include: {
       mahjongTable: { select: { name: true } },
       storeRule: true,
-      seats: { where: { removedAt: null }, orderBy: { position: "asc" }, select: { id: true, visitId: true, position: true, visit: { select: { id: true, storeId: true, customerId: true, status: true, customer: { select: { id: true, storeId: true, internalName: true, customerCode: true, isActive: true } } } } } },
+      seats: { where: { removedAt: null }, orderBy: { position: "asc" }, select: { id: true, visitId: true, position: true, visit: { select: { id: true, storeId: true, customerId: true, status: true, customer: { select: { id: true, storeId: true, internalName: true, participantStaffId: true, customerCode: true, isActive: true } } } } } },
     },
   });
   if (!session) return null;
@@ -30,7 +30,7 @@ export async function getSessionGames(database: Pick<PrismaClient, "tableSession
     where: { id: tableSessionId, storeId },
     include: {
       mahjongTable: { select: { name: true } },
-      games: { orderBy: [{ sequenceNumber: "asc" }, { revisionNumber: "asc" }], include: { results: { orderBy: { position: "asc" }, include: { customer: { select: { customerCode: true, internalName: true } } } } } },
+      games: { orderBy: [{ sequenceNumber: "asc" }, { revisionNumber: "asc" }], include: { results: { orderBy: { position: "asc" }, include: { customer: { select: { customerCode: true, internalName: true, participantStaffId: true } } } } } },
     },
   });
 }
@@ -49,7 +49,7 @@ export async function getGameDetail(database: Pick<PrismaClient, "game"> | null,
     where: { id: gameId, storeId },
     include: {
       tableSession: { include: { mahjongTable: { select: { name: true } } } },
-      results: { orderBy: { position: "asc" }, include: { customer: { select: { customerCode: true, internalName: true } } } },
+      results: { orderBy: { position: "asc" }, include: { customer: { select: { customerCode: true, internalName: true, participantStaffId: true } } } },
       correctedGame: { select: { id: true, sequenceNumber: true, revisionNumber: true } },
       originalGame: { select: { id: true, sequenceNumber: true, revisionNumber: true } },
     },

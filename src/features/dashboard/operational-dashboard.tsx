@@ -1,3 +1,4 @@
+import { participantName } from "@/features/staff-participation/participant-policy";
 import Link from "next/link";
 import type { OperationalDashboardData } from "./get-dashboard-data";
 
@@ -23,7 +24,7 @@ export function OperationalDashboard({ data, staffName, timezone }: { data: Oper
         <article className="panel"><span>今回のフリー本数</span><strong>{data.metrics?.games ?? "—"}<small>本</small></strong></article>
         <article className="panel"><span>今回のフリー売上</span><strong>{data.metrics ? yen(data.metrics.revenueYen) : "—"}</strong></article>
         <article className="panel"><span>今回の来店実人数</span><strong>{data.metrics?.customers ?? "—"}<small>人</small></strong></article>
-        <article className="panel"><span>現在の待機／対局中</span><strong>{data.waiting}／{data.playing}<small>人</small></strong></article>
+        <article className="panel"><span>待機／対局中（スタッフ含む）</span><strong>{data.waiting}／{data.playing}<small>人</small></strong></article>
       </section>
       <section className="panel business-panel">
         <div className="operations-section-heading"><h2>現在の卓</h2><Link className="text-link" href="/admin/tables">卓を操作する →</Link></div>
@@ -35,7 +36,7 @@ export function OperationalDashboard({ data, staffName, timezone }: { data: Oper
             <div className="operations-section-heading"><strong>{table.name}</strong><span className={`business-badge${session ? " is-open" : ""}`}>{session ? "フリー" : "空き"}</span></div>
             {session ? <>
               <p>開始 {time(session.startedAt, data.currentDay?.timezone ?? timezone)}</p>
-              <p className="operations-players">{session.seats.map((seat) => `席${seat.position}：${seat.visit.customer.internalName}`).join(" ／ ")}</p>
+              <p className="operations-players">{session.seats.map((seat) => `席${seat.position}：${participantName(seat.visit.customer)}`).join(" ／ ")}</p>
               <Link className="button button-secondary" href={`/admin/tables/${session.id}/games/new`}>結果を入力する</Link>
             </> : <Link className="button button-secondary" href="/admin/tables">待機客を選んで開始</Link>}
           </li>;

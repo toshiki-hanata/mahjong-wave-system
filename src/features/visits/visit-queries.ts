@@ -31,7 +31,7 @@ export async function getOpenVisits(
       id: true,
       checkedInAt: true,
       status: true,
-      customer: { select: { id: true, customerCode: true, internalName: true } },
+      customer: { select: { id: true, customerCode: true, internalName: true, participantStaffId: true } },
     },
   });
 }

@@ -58,7 +58,7 @@ export async function registerAndCheckIn(
 
     await requireOpenBusinessDay(tx, context.storeId);
     const customers = await tx.customer.findMany({
-      where: { storeId: context.storeId },
+      where: { storeId: context.storeId, participantStaffId: null },
       select: { id: true, customerCode: true, internalName: true, isActive: true },
       orderBy: { customerCode: "asc" },
     });

@@ -32,8 +32,10 @@ import { openBusinessDayAction, closeBusinessDayAction, updateBusinessDayTimesAc
 import { createTableAction, updateTableAction, deactivateTableAction, startTableSessionAction, endTableSessionAction, changeTableMembersAction } from "@/app/admin/(protected)/tables/actions";
 import { createGameAction, correctGameAction, createStoreRuleAction } from "@/app/admin/(protected)/games/actions";
 import { quickReceptionAction, checkInVisitAction, checkOutVisitAction } from "@/app/admin/(protected)/visits/actions";
+import { checkInStaffParticipantAction } from "@/app/admin/(protected)/staff-games/actions";
 
 const allActions = [
+  ["staff participation", checkInStaffParticipantAction],
   ["open business", openBusinessDayAction], ["close business", closeBusinessDayAction],
   ["edit business times", updateBusinessDayTimesAction], ["change price", updateFreeGamePriceAction],
   ["create table", createTableAction], ["edit table", updateTableAction], ["deactivate table", deactivateTableAction],

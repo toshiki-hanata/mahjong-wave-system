@@ -58,7 +58,7 @@ export async function updateCustomer(
   return database.$transaction(async (tx) => {
     await lockBusinessStore(tx, context.storeId);
     const current = await tx.customer.findFirst({
-      where: { id: customerId, storeId: context.storeId },
+      where: { id: customerId, storeId: context.storeId, participantStaffId: null },
       select: { id: true, publicProfile: { select: { id: true, nickname: true } } },
     });
     if (!current) return false;
@@ -115,7 +115,7 @@ export async function deactivateCustomer(
   return database.$transaction(async (tx) => {
     await lockBusinessStore(tx, context.storeId);
     const customer = await tx.customer.findFirst({
-      where: { id: customerId, storeId: context.storeId, isActive: true },
+      where: { id: customerId, storeId: context.storeId, isActive: true, participantStaffId: null },
       select: { id: true },
     });
     if (!customer) return false;
@@ -144,7 +144,7 @@ export async function getPublicProfileById(database: Pick<PrismaClient, "publicP
       publicId,
       rankingOptIn: true,
       profileVisible: true,
-      customer: { is: { isActive: true } },
+      customer: { is: { isActive: true, participantStaffId: null } },
     },
     select: { publicId: true, nickname: true, avatarUrl: true },
   });

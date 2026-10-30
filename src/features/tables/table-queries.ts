@@ -31,16 +31,16 @@ export async function getTablePageData(database: Pick<PrismaClient, "mahjongTabl
             _count: { select: { games: { where: { status: "CONFIRMED" } } } },
             seats: {
               where: { removedAt: null }, orderBy: { position: "asc" },
-              select: { id: true, position: true, visitId: true, visit: { select: { status: true, customer: { select: { id: true, customerCode: true, internalName: true, isActive: true } } } } },
+              select: { id: true, position: true, visitId: true, visit: { select: { status: true, customer: { select: { id: true, customerCode: true, internalName: true, participantStaffId: true, isActive: true } } } } },
             },
           },
         },
       },
     }),
     database.visit.findMany({
-      where: { storeId, status: VisitStatus.WAITING, customer: { is: { isActive: true } } },
+      where: { storeId, status: VisitStatus.WAITING, customer: { is: { isActive: true, OR: [{ participantStaffId: null }, { participantStaff: { is: { isActive: true } } }] } } },
       orderBy: { checkedInAt: "asc" },
-      select: { id: true, checkedInAt: true, customer: { select: { customerCode: true, internalName: true } } },
+      select: { id: true, checkedInAt: true, customer: { select: { customerCode: true, internalName: true, participantStaffId: true } } },
     }),
     database.tableSession.findMany({ where: { storeId }, orderBy: { startedAt: "desc" }, take: 20, select: { id: true, status: true, startedAt: true, endedAt: true, mahjongTable: { select: { name: true } }, _count: { select: { games: { where: { status: "CONFIRMED" } } } } } }),
   ]);

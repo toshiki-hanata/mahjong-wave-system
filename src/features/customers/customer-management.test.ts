@@ -46,7 +46,7 @@ describe("Sprint 2 customer management", () => {
     expect(where.storeId).toBe("store-a");
     expect(where.isActive).toBe(true);
     expect(where.OR).toHaveLength(3);
-    expect(buildCustomerSearchWhere("store-b", "", true)).toEqual({ storeId: "store-b" });
+    expect(buildCustomerSearchWhere("store-b", "", true)).toEqual({ storeId: "store-b", participantStaffId: null });
   });
 
   it("caps overly long customer search terms server-side", () => {
@@ -74,7 +74,7 @@ describe("Sprint 2 customer management", () => {
     const memory = createMemoryDatabase({ customer: { id: "customer-1", storeId: "store-a", isActive: true }, profile: { id: "profile-1", customerId: "customer-1", nickname: "はな", rankingOptIn: true, profileVisible: true } });
     const updated = await updateCustomer(memory.db, "customer-1", updateInput(), { storeId: "store-a", staffId: "staff-a" });
     expect(updated).toBe(true);
-    expect(memory.customer.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { id: "customer-1", storeId: "store-a" } }));
+    expect(memory.customer.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { id: "customer-1", storeId: "store-a", participantStaffId: null } }));
     expect(memory.state.profile).toMatchObject({ nickname: "はな", rankingOptIn: false, profileVisible: false });
     expect(memory.state.audits.map((row) => row.action)).toContain("PUBLIC_PROFILE_UPDATE");
   });
@@ -88,7 +88,7 @@ describe("Sprint 2 customer management", () => {
   it("scopes detail retrieval by both customer id and authenticated storeId", async () => {
     const memory = createMemoryDatabase({ customer: { id: "customer-1", storeId: "store-b", isActive: true } });
     await expect(getCustomerDetails(memory as never, "store-a", "customer-1")).resolves.toBeNull();
-    expect(memory.customer.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { id: "customer-1", storeId: "store-a" } }));
+    expect(memory.customer.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { id: "customer-1", storeId: "store-a", participantStaffId: null } }));
   });
 
   it("deactivates instead of deleting and writes the deactivation audit event", async () => {

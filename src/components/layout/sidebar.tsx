@@ -10,6 +10,7 @@ const navigation: Array<{ label: string; icon: string; href: string; count?: str
   { label: "卓・対局", icon: "▦", href: "/admin/tables" },
   { label: "顧客管理", icon: "♙", href: "/admin/customers" },
   { label: "受付・来店中", icon: "●", href: "/admin/visits" },
+  { label: "スタッフ成績・本数", icon: "♙", href: "/admin/staff-games" },
   { label: "会計", icon: "￥", href: "#accounting" },
 ];
 

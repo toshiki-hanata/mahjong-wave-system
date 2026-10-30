@@ -1,10 +1,11 @@
 "use client";
+import { participantName, participantCode } from "@/features/staff-participation/participant-policy";
 
 import { useActionState, useMemo, useState } from "react";
 import { calculateGame, scoreForDisplay, type GameRule } from "@/features/games/game-calculation";
 import { createGameAction, correctGameAction, type GameFormState } from "@/app/admin/(protected)/games/actions";
 
-type Player = { position: number; visitId: string; customerId: string; customer: { internalName: string; customerCode: string } };
+type Player = { position: number; visitId: string; customerId: string; customer: { internalName: string; participantStaffId?: string | null; customerCode: string } };
 
 function PointsEntry({
   sessionId, sequence, idempotencyKey, players, rule, initialPoints, correction, seatingToken,
@@ -35,7 +36,7 @@ function PointsEntry({
         const result = preview?.find((item) => item.position === player.position);
         return <label className="game-player-input" key={player.position}>
           <span className="game-position">座席 {player.position}</span>
-          <strong>{player.customer.internalName}</strong><small>{player.customer.customerCode}</small>
+          <strong>{participantName(player.customer)}</strong><small>{participantCode(player.customer)}</small>
           <input name={`points${player.position}`} type="number" inputMode="decimal" step={rule.pointUnit} required disabled={pending} value={points[player.position]} onChange={(event) => setPoints((current) => ({ ...current, [player.position]: event.target.value }))} aria-label={`座席${player.position}の最終持ち点`} />
           {rule.allowNegative && <button className="game-sign-toggle" type="button" disabled={pending || !points[player.position] || !Number(points[player.position])} onClick={() => setPoints((current) => ({ ...current, [player.position]: String(-Number(current[player.position])) }))}>{Number(points[player.position]) < 0 ? "プラスにする" : "マイナスにする"}</button>}
           {result && <span className="game-preview">{result.rank}位 · {scoreForDisplay(result.scoreScaled, rule.scorePrecision)} pt</span>}

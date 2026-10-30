@@ -12,6 +12,7 @@ export function buildCustomerSearchWhere(storeId: string, query: string, include
   const term = normalizeCustomerSearchTerm(query);
   return {
     storeId,
+    participantStaffId: null,
     ...(includeInactive ? {} : { isActive: true }),
     ...(term ? {
       OR: [
@@ -46,7 +47,7 @@ export async function searchCustomers(
 
 export async function getCustomerDetails(database: Pick<PrismaClient, "customer">, storeId: string, customerId: string) {
   return database.customer.findFirst({
-    where: { id: customerId, storeId },
+    where: { id: customerId, storeId, participantStaffId: null },
     select: {
       id: true, customerCode: true, internalName: true, note: true,
       firstVisitAt: true, lastVisitAt: true, isActive: true, createdAt: true,

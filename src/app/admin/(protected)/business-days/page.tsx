@@ -39,7 +39,7 @@ export default async function BusinessDaysPage() {
     </section>}
     <section className="panel business-panel">
       <h2>{current ? "営業終了前の確認" : "前回の片付け状況"}</h2>
-      <ul className="business-checks"><li>利用中の卓 <strong>{data.activeTables}卓</strong></li><li>未退店のお客さん <strong>{data.openVisits}人</strong></li></ul>
+      <ul className="business-checks"><li>利用中の卓 <strong>{data.activeTables}卓</strong></li><li>退店・参加終了が済んでいない人 <strong>{data.openVisits}人</strong></li></ul>
       {blocked && <p className="business-warning" role="status">先に卓を解放してから、来店中のお客さんを退店処理してください。以前の営業・テストで残ったものも対象です。</p>}
       {current && <CloseBusinessDayForm key={current.id} businessDayId={current.id} blocked={blocked} />}
       {current && canCorrect && <details className="business-time-details">

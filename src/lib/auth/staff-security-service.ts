@@ -3,6 +3,7 @@ import "server-only";
 import type { PrismaClient } from "@prisma/client";
 import { hashPassword } from "./password";
 import { recordAuditLog } from "@/lib/audit-log";
+import { lockBusinessStore } from "@/features/business-days/business-day-service";
 
 type Database = Pick<PrismaClient, "$transaction">;
 type StaffSecurityContext = { storeId: string; actorStaffId: string };
@@ -10,6 +11,7 @@ type StaffSecurityContext = { storeId: string; actorStaffId: string };
 /** Staff deactivation (and reactivation) invalidates all previously issued cookies. */
 export async function setStaffActive(database: Database, staffId: string, isActive: boolean, context: StaffSecurityContext): Promise<boolean> {
   return database.$transaction(async (tx) => {
+    await lockBusinessStore(tx, context.storeId);
     const staff = await tx.staff.findFirst({ where: { id: staffId, storeId: context.storeId }, select: { isActive: true } });
     if (!staff || staff.isActive === isActive) return false;
     const updated = await tx.staff.updateMany({
@@ -29,6 +31,7 @@ export async function setStaffActive(database: Database, staffId: string, isActi
 /** Invalidates every signed cookie issued to this staff member. */
 export async function revokeStaffSessions(database: Database, staffId: string, context: StaffSecurityContext): Promise<boolean> {
   return database.$transaction(async (tx) => {
+    await lockBusinessStore(tx, context.storeId);
     const updated = await tx.staff.updateMany({
       where: { id: staffId, storeId: context.storeId },
       data: { sessionVersion: { increment: 1 } },
@@ -55,6 +58,7 @@ export async function changeStaffPassword(
 ): Promise<boolean> {
   const passwordHash = await hashPassword(password);
   return database.$transaction(async (tx) => {
+    await lockBusinessStore(tx, context.storeId);
     const updated = await tx.staff.updateMany({
       where: { id: staffId, storeId: context.storeId },
       data: { passwordHash, sessionVersion: { increment: 1 } },

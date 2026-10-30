@@ -15,7 +15,7 @@ export async function getDashboardData(database: PrismaClient | null, storeId: s
         where: { storeId, status: "ACTIVE" }, take: 1,
         select: { id: true, startedAt: true, seats: {
           where: { storeId, removedAt: null }, orderBy: { position: "asc" },
-          select: { position: true, visit: { select: { customer: { select: { internalName: true } } } } },
+          select: { position: true, visit: { select: { customer: { select: { internalName: true, participantStaffId: true } } } } },
         } },
       } },
     });
@@ -27,7 +27,7 @@ export async function getDashboardData(database: PrismaClient | null, storeId: s
       _count: { _all: true }, _sum: { freeGamePriceYen: true },
     }) : null;
     const customers = currentDay ? await tx.visit.groupBy({
-      by: ["customerId"], where: { storeId, businessDayId: currentDay.id }, _count: { _all: true },
+      by: ["customerId"], where: { storeId, businessDayId: currentDay.id, customer: { is: { participantStaffId: null } } }, _count: { _all: true },
     }) : [];
     const recentGames = currentDay ? await tx.game.findMany({
       where: { storeId, businessDayId: currentDay.id, status: "CONFIRMED" },

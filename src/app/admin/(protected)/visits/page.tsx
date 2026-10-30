@@ -1,3 +1,6 @@
+import { StaffParticipationForm } from "@/features/staff-participation/staff-participation-form";
+import { getAvailableStaffParticipants } from "@/features/staff-participation/staff-participation-queries";
+import { participantName } from "@/features/staff-participation/participant-policy";
 import Link from "next/link";
 import { randomUUID } from "node:crypto";
 import { VisitStatus } from "@prisma/client";
@@ -22,13 +25,15 @@ export default async function VisitsPage({ searchParams }: VisitsPageProps) {
   const params = await searchParams;
   const query = normalizeCustomerSearchTerm(first(params.q));
   const notice = first(params.notice);
-  const [visits, counts, customers] = await Promise.all([
+  const [visits, counts, customers, availableStaff] = await Promise.all([
     getOpenVisits(prisma, staff.storeId),
     getVisitStatusCounts(prisma, staff.storeId),
     prisma && query ? searchCustomers(prisma, staff.storeId, query, { limit: 20, includeInactive: true }) : Promise.resolve([]),
+    getAvailableStaffParticipants(prisma, staff.storeId),
   ]);
   const waitingVisits = visits.filter((visit) => visit.status === VisitStatus.WAITING);
   const playingVisits = visits.filter((visit) => visit.status === VisitStatus.PLAYING);
+  const staffRequestKey = randomUUID();
   const openCustomerIds = new Set(visits.map((visit) => visit.customer.id));
 
   return <div className="page-content visits-page">
@@ -41,11 +46,12 @@ export default async function VisitsPage({ searchParams }: VisitsPageProps) {
       <Link className="button button-secondary" href="/admin/tables">卓に配置する →</Link>
     </header>
 
+    {notice === "staff-joined" && <p className="visit-notice" role="status">スタッフを待機に追加しました。卓画面で席を選択できます。</p>}
     {notice === "checked-out" && <p className="visit-notice" role="status">チェックアウトしました。</p>}
     {!prisma && <p className="visit-notice" role="status">データベースに接続できません。</p>}
 
     <section className="visit-count-grid" aria-label="現在の来店状況">
-      <article className="visit-count-card visit-count-total"><span>現在の来店人数</span><strong>{counts?.total ?? "—"}<small>名</small></strong></article>
+      <article className="visit-count-card visit-count-total"><span>来店・参加人数</span><strong>{counts?.total ?? "—"}<small>名</small></strong></article>
       <article className="visit-count-card visit-count-waiting"><span>待機中</span><strong>{counts?.waiting ?? "—"}<small>名</small></strong></article>
       <article className="visit-count-card visit-count-playing"><span>対局中</span><strong>{counts?.playing ?? "—"}<small>名</small></strong></article>
     </section>
@@ -70,14 +76,16 @@ export default async function VisitsPage({ searchParams }: VisitsPageProps) {
       <QuickReceptionForm key={query} initialRequestId={randomUUID()} initialName={query} />
     </section>
 
+    <details className="panel business-panel"><summary>スタッフを参加させる</summary><p>登録済みのスタッフを待機に追加します。参加終了は待機に戻してから行います。</p><StaffParticipationForm key={staffRequestKey} requestKey={staffRequestKey} staff={availableStaff.map((person) => ({ ...person, alreadyParticipating: visits.some((visit) => visit.customer.participantStaffId === person.id) }))} /><Link className="text-link" href="/admin/staff-games">スタッフ成績・参加本数へ →</Link></details>
+
     <section className="visit-open-section" aria-labelledby="open-visits-title">
-      <div className="visit-section-heading visit-list-heading"><div><h2 id="open-visits-title">現在の来店中一覧</h2><p>日付をまたいだ未退店Visitも表示します。</p></div><span className="visit-open-count">{counts?.total ?? 0}名</span></div>
+      <div className="visit-section-heading visit-list-heading"><div><h2 id="open-visits-title">来店・スタッフ参加一覧</h2><p>日付をまたいだ未退店Visitも表示します。</p></div><span className="visit-open-count">{counts?.total ?? 0}名</span></div>
       <div className="visit-status-columns">
         {[{ status: VisitStatus.WAITING, visits: waitingVisits }, { status: VisitStatus.PLAYING, visits: playingVisits }].map((group) => <section className="panel visit-status-panel" key={group.status}>
           <header><h3>{statusLabel[group.status]}</h3><span>{group.visits.length}</span></header>
           {group.visits.length === 0 ? <p className="visit-empty">該当する来店はありません。</p> : <ul className="visit-list">{group.visits.map((visit) => <li className="visit-list-row" key={visit.id}>
-            <div className="visit-customer-info"><strong>{visit.customer.internalName}</strong><span>{visit.customer.customerCode}</span><time dateTime={visit.checkedInAt.toISOString()}>受付 {formatVisitDateTime(visit.checkedInAt, staff.storeTimezone)}</time></div>
-            {visit.status === VisitStatus.WAITING ? <CheckOutButton visitId={visit.id} /> : <p className="visit-playing-hint">卓から外して待機中に戻してから退店できます。</p>}
+            <div className="visit-customer-info"><strong>{participantName(visit.customer)}</strong><span>{visit.customer.participantStaffId ? "スタッフ参加" : visit.customer.customerCode}</span><time dateTime={visit.checkedInAt.toISOString()}>受付 {formatVisitDateTime(visit.checkedInAt, staff.storeTimezone)}</time></div>
+            {visit.status === VisitStatus.WAITING ? <CheckOutButton visitId={visit.id} label={visit.customer.participantStaffId ? "参加を終了" : "退店する"} /> : <p className="visit-playing-hint">卓から外して待機中に戻してから退店・参加終了できます。</p>}
           </li>)}</ul>}
         </section>)}
       </div>

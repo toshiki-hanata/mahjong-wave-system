@@ -57,7 +57,7 @@ describe("effective ranking result scope", () => {
     const end = new Date("2026-10-31T15:00:00.000Z");
     expect(buildEffectiveResultWhere("store-a", undefined, { start, end }, true)).toEqual({
       storeId: "store-a",
-      customer: { is: { storeId: "store-a", isActive: true } },
+      customer: { is: { storeId: "store-a", isActive: true, participantStaffId: null } },
       game: { is: { storeId: "store-a", status: "CONFIRMED", effectiveAt: { gte: start, lt: end } } },
     });
   });
