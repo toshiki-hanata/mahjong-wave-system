@@ -36,6 +36,11 @@ enum GameStatus {
   CORRECTED
 }
 
+enum PointEntryKind {
+  ADJUST
+  REVERSE
+}
+
 enum TieBreakRule {
   POSITION_ASC
 }
@@ -99,6 +104,7 @@ model Store {
   games            Game[]
   gameResults      GamePlayerResult[]
   businessDays     BusinessDay[]
+  pointLedgerEntries PointLedgerEntry[]
 }
 
 model Staff {
@@ -121,6 +127,7 @@ model Staff {
   businessDaysOpened BusinessDay[] @relation("BusinessDayOpenedBy")
   businessDaysClosed BusinessDay[] @relation("BusinessDayClosedBy")
   participantProfile Customer? @relation("StaffParticipantProfile")
+  pointLedgerEntries PointLedgerEntry[]
 
   @@unique([loginId])
   @@unique([storeId, id])
@@ -184,11 +191,40 @@ model Customer {
   visits           Visit[]
   gameResults      GamePlayerResult[]
 
+  pointLedgerEntries PointLedgerEntry[]
+
   @@unique([storeId, customerCode])
   @@unique([storeId, participantStaffId])
   @@unique([storeId, id])
   @@index([storeId, isActive, internalName])
   @@index([storeId, createdAt])
+}
+
+model PointLedgerEntry {
+  id             String @id @default(cuid())
+  storeId        String
+  customerId     String
+  actorStaffId   String
+  kind           PointEntryKind
+  delta          Int
+  balanceAfter   Int
+  sequenceNumber Int
+  requestKey     String @db.VarChar(36)
+  reason         String @db.VarChar(500)
+  reversesEntryId String?
+  createdAt      DateTime @default(now()) @db.Timestamptz(3)
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  customer Customer @relation(fields: [storeId, customerId], references: [storeId, id], onDelete: Restrict)
+  actor Staff @relation(fields: [storeId, actorStaffId], references: [storeId, id], onDelete: Restrict)
+  reverses PointLedgerEntry? @relation("PointLedgerReversal", fields: [storeId, customerId, reversesEntryId], references: [storeId, customerId, id], onDelete: Restrict, onUpdate: Restrict)
+  reversalEntries PointLedgerEntry[] @relation("PointLedgerReversal")
+
+  @@unique([storeId, requestKey])
+  @@unique([storeId, customerId, id])
+  @@unique([storeId, customerId, sequenceNumber])
+  @@unique([storeId, customerId, reversesEntryId])
+  @@index([storeId, customerId, createdAt])
 }
 
 model Visit {

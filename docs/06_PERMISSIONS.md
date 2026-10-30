@@ -96,3 +96,11 @@ Ranking and personal-result reads derive `storeId` from the authenticated Staff.
 - `/admin/staff-games`はOWNER／MANAGERが自店舗全員、STAFFが自分のみ。DBから現在の役割を取得し、入力のroleやstaffIdは権限に使わない。
 - スタッフ用Customerを通常顧客の編集・公開プロフィール・ランキングへ混入させない。顧客向けランキングと特典ポイントからの除外は暫定方針。
 - 詳細と未確認事項は[スタッフ参加](STAFF_PARTICIPATION.md)。
+
+
+## 特典ポイント台帳（2026-10-31、P01-a実装）
+
+- 全Roleが自店舗の通常会員の残高・履歴を閲覧。OWNER／MANAGERだけが手動調整・取消を行う。各Actionで認可し、サービス内でもDBから有効状態・現在の役割を再確認する。
+- 無効会員は履歴のみ、スタッフ参加用会員は対象外。他店舗の会員・担当・取消元を拒否する。
+- 決定済み特典交換は全スタッフという承認済み方針だが、交換機能自体は未実装。自由な減算をSTAFFへ許可していない。
+- 操作・検証範囲は[ポイント台帳](POINT_LEDGER.md)。
