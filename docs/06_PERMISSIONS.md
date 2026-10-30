@@ -74,3 +74,17 @@ Game参加者・Visit・Customer・positionはサーバーがTableSeatから解�
 | 規定打数設定の変更 | 可 | 可 | 不可 |
 
 Ranking and personal-result reads derive `storeId` from the authenticated Staff. Customer detail reads require both Customer ID and session Store ID. Ranking settings updates re-check OWNER/MANAGER server-side and write their AuditLog in the same transaction. Public rankings are not included; no internal ranking DTO is exposed as a public response.
+
+## 顧客認証・公開・ポイントの権限計画（2026-10-31、未実装）
+
+既存のスタッフ認証・上記の権限は変更しない。以下は[顧客認証開発計画](CUSTOMER_AUTH_PLAN.md)の受入条件であり、実装済み権限ではない。
+
+| 操作 | 匿名 | 認証済み顧客 | スタッフ |
+| --- | --- | --- | --- |
+| 一般公開ランキング | 同意済みの公開項目のみ | 同左 | 一般公開では同じ公開項目のみ。管理画面の内部閲覧は既存権限による |
+| 本人の非公開成績・ポイント残高／履歴 | 不可 | 認証から解決した自店舗・自分のデータのみ | 管理画面の店舗・役割の権限による。顧客認証との共用はしない |
+| ポイント交換・消費・調整 | 不可 | 不可 | 店員承認・処理のみ。OWNER／MANAGER／STAFFの具体的権限差は未確定 |
+| 連携QR発行・店頭復旧承認 | 不可 | 自己申告だけでは不可 | 発行権限・復旧条件は実装前に決定。十分な確認材料がなければ保留 |
+| パスキー追加・削除 | 不可 | 本人再認証後、決定した手順でのみ | スタッフ権限だけで無確認の代理登録を認めない |
+
+受付QR・会員番号・URLだけで本人専用データやポイント利用権限を与えない。連携QRも双方確認とパスキー登録成功前には認証完了にしない。全保護APIで本人・店舗・セッション失効を検証する。公開OFFは本人の私的閲覧を禁止する設定ではない。
