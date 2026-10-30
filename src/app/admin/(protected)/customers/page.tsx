@@ -11,6 +11,7 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
   return <div className="page-content customers-page">
     <header className="customers-heading"><div><p className="eyebrow">CUSTOMER MANAGEMENT</p><h1>顧客管理</h1><p className="welcome-subtitle">店舗内の顧客情報と公開プロフィールを管理します。</p></div><Link className="button button-primary" href="/admin/customers/new">＋ 顧客を登録</Link></header>
     {!prisma && <p className="form-message" role="status">DATABASE_URLが未設定のため、顧客データを読み込めません。</p>}
+    <p><Link className="button button-secondary" href="/admin/customers/reconcile">紙・Excel名簿を登録せずに照合する</Link></p>
     <form className="customer-search" action="/admin/customers" role="search">
       <label htmlFor="customer-search-input">顧客検索</label><div><input id="customer-search-input" name="q" type="search" maxLength={100} placeholder="顧客コード・内部管理名・公開ニックネーム" defaultValue={query} /><button className="button button-secondary" type="submit">検索</button></div>
     </form>

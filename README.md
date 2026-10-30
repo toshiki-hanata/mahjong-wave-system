@@ -2,6 +2,7 @@
 
 継続開発の優先順位・追加仕様・未確定事項は [継続開発リスト](docs/DEVELOPMENT_BACKLOG.md) を参照してください。
 受付の操作手順と検証状況は [スマホ受付の改善](docs/MOBILE_RECEPTION.md) に記載しています。
+既存客の移行準備には[紙・Excel名簿の照合](docs/CUSTOMER_RECONCILIATION.md)を利用できます（照合だけで、登録・統合・ポイント移行はしません）。
 営業日・フリー本数／売上の操作と検証は [営業開始・終了](docs/BUSINESS_DAYS.md) を参照してください。
 スタッフの着席・参加終了・成績／本数は[スタッフ参加](docs/STAFF_PARTICIPATION.md)を参照してください。
 顧客向けの認証・QR・マイページ・ポイントは[顧客認証開発計画](docs/CUSTOMER_AUTH_PLAN.md)を参照してください（2026-10-31方針更新、未実装）。LINE非依存、パスキー＋期限付きセッション＋復旧コードを計画し、過去のLINE／外部ポイントAPI連携案を置き換えます。
