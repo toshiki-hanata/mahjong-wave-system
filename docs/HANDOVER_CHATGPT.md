@@ -99,7 +99,7 @@
 
 | 場所 | 内容 |
 | --- | --- |
-| GitHub `main` | `35db9de`。過去のSprint 5.5の状態。最新のローカル開発一式はまだ反映していない |
+| GitHub `main` | `f287bc6`。過去のSprint 5.5本体に、PDFのPR #1が別途マージされた状態。最新の本体実装・モックソースは開発ブランチを参照 |
 | GitHub `codex/mock-screen-pdf` | `3386519`。mainを基点に、操作案内PDFだけを追加してpush済み |
 | 開発・共有対象 `codex/mobile-reception` | 最新の実装と整理を保持。QR連携までの実装コミット `d03fd98`、ローカルPDFコミット `5b4e8fb` などを含む。整理の最新コミットは `git log -1` で確認する |
 
@@ -140,3 +140,7 @@
 型チェック成功、lintの17エラー・7警告を修正して0件。本体ユニット227件・モック12件、PC/390px各96画面、匿名ログイン表示・保護画面のリダイレクト、隔離Webpackビルドを確認。既存Next devとの二重起動を確認し、接続先が明確なVS Code起動設定を追加した。ユーザーが見た原文、VS Code F5実操作、実スマホ・実DBの受入は未確認。
 
 npm auditは重大・高0件、中7件が開発用依存に残る。隔離した自動修正でも解消しないため対応タスクを残す。詳しい範囲は[開発起動とデバッグ](DEBUGGING.md)。最新一式は[開発ブランチ](https://github.com/toshiki-hanata/mahjong-wave-system/tree/codex/mobile-reception)で共有する。Git pushとVercelへのWeb公開は別。
+
+## 12. 最終push照合
+
+2026-11-14、デバッグ修正コミット `2b669a4` を含む開発ブランチcodex/mobile-receptionのpushに成功し、リモートHEADとの一致を確認した。最終照合でmainのPDF用PR #1のマージ（`f287bc6`）も判明したため、上の一覧を訂正した。当作業でmainへのpush・マージは行っていない。依存追加と試作画面の未コミット3ファイルは保持した。
