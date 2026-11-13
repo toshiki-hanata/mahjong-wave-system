@@ -1,0 +1,43 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "麻雀ウェーブ本体：Chrome (起動中の3000へ接続)",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:3000/admin/login",
+      "webRoot": "${workspaceFolder}",
+      "skipFiles": [
+        "<node_internals>/**",
+        "${workspaceFolder}/node_modules/**"
+      ]
+    },
+    {
+      "name": "麻雀ウェーブ本体：開発サーバー (未起動時のみ)",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npm.cmd run dev -- --hostname 127.0.0.1 --port 3000",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "96画面モック：専用サーバー (4178)",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/mock/serve.cjs",
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "MOCK_PORT": "4178",
+        "MOCK_HOST": "127.0.0.1"
+      },
+      "console": "integratedTerminal",
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
+      "serverReadyAction": {
+        "action": "openExternally",
+        "pattern": "Wave explanation mock: (http://localhost:[0-9]+)",
+        "uriFormat": "%s"
+      }
+    }
+  ]
+}
