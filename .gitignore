@@ -14,3 +14,10 @@ yarn-debug.log*
 pnpm-debug.log*
 .vercel/
 generated/prisma/
+
+# Regenerable local mock QA outputs; keep source and the reviewed PDF in Git.
+/mock/screenshots/
+/mock/docs/browser-results.json
+/mock/tests/browser-results-local.json
+/mock/tests/qa-download.csv
+/mock/tests/download-*.csv

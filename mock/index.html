@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="referrer" content="no-referrer">
+  <title>麻雀ウェーブ｜全画面操作モック</title>
+  <link rel="icon" href="assets/mark.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="assets/style.css">
+  <link rel="stylesheet" href="assets/refinements.css">
+  <script>window.addEventListener('error',function(){var e=document.getElementById('boot-warning');if(e){e.hidden=false;e.textContent='一部の処理を読み込めませんでした。表示中の概要はそのまま確認できます。再読み込みするか、READMEの開き方をご確認ください。';}});</script>
+  <script defer src="assets/catalog.js"></script>
+  <script defer src="assets/model.js"></script>
+  <script defer src="assets/ui.js"></script>
+  <script defer src="assets/views-core.js"></script>
+  <script defer src="assets/views-operations.js"></script>
+  <script defer src="assets/views-member.js"></script>
+  <script defer src="assets/app.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#app">本文へ移動</a>
+  <div class="demo-ribbon"><span class="ribbon-dot"></span><strong>説明・操作体験用モック</strong><span class="ribbon-long">架空データのみ · 実店舗の受付・認証・支払いは行いません</span><a href="docs/README.html">開き方・説明資料</a></div>
+  <div class="shell">
+    <aside class="sidebar" id="sidebar">
+      <a class="brand" href="#/dashboard"><span class="brand-mark">波</span><span><strong>麻雀ウェーブ</strong><small>STORE MANAGEMENT DEMO</small></span></a>
+      <div class="store-label"><span class="store-icon">W</span><div><strong>ウェーブ駅前店〈架空〉</strong><small>7卓の営業を体験</small></div></div>
+      <nav id="navigation" aria-label="メインメニュー">
+        <p class="nav-caption">今日のお店</p>
+        <a class="nav-link is-active" href="#/dashboard"><span>◈</span>ホーム</a>
+        <a class="nav-link" href="#/business-status"><span>◷</span>営業開始・終了</a>
+        <a class="nav-link" href="#/visits"><span>♙</span>受付・来店中</a>
+        <a class="nav-link" href="#/tables"><span>▦</span>卓・対局</a>
+        <a class="nav-link" href="#/customers"><span>♧</span>会員一覧</a>
+        <a class="nav-link" href="#/ranking-month"><span>♜</span>成績・ランキング</a>
+        <a class="nav-link" href="#/points"><span>✧</span>特典ポイント</a>
+        <a class="nav-link" href="#/sets"><span>◇</span>セット・予約</a>
+        <a class="nav-link" href="#/all-screens"><span>▤</span>全画面一覧</a>
+      </nav>
+      <div class="sidebar-bottom"><a href="#/explain" class="explain-link">関係者向け説明モード <span>↗</span></a><p>画面上の操作はすべて模擬です。<br>製品の実装状況は各画面に表示。</p></div>
+    </aside>
+    <div class="workspace">
+      <header class="topbar">
+        <button class="icon-button menu-toggle" id="menu-toggle" aria-label="メニューを開く" aria-controls="sidebar" aria-expanded="false">☰</button>
+        <div class="breadcrumb"><span>店舗管理</span><span>/</span><strong id="breadcrumb-title">ホーム</strong></div>
+        <div class="top-actions"><button class="button small secondary" id="customer-switch" data-action="switch-mode">お客さん画面</button><a class="staff-chip" id="staff-chip" href="#/login"><span class="avatar">森</span><span>デモスタッフ<small>切り替える</small></span></a></div>
+      </header>
+      <div id="boot-warning" class="notice danger" hidden role="alert"></div>
+      <div class="toolbar" id="toolbar"><div class="business-indicator"><span class="live-dot"></span>サンプル営業データを表示しています</div><div class="toolbar-actions"><a href="#/demo-guide">営業を通して体験 →</a><button class="text-button" data-action="load-sample">サンプル営業を読み込む</button><button class="text-button" data-action="reset">初期状態に戻す</button></div></div>
+      <main id="app" class="page" tabindex="-1">
+        <div class="page-heading"><div><p class="eyebrow">MAHJONG WAVE / INTERACTIVE DEMO</p><h1>お店の一日を、ここから。</h1><p class="lead">受付、卓の進行、成績、営業終了まで。<br>実際に押して、麻雀ウェーブの使い方を体験できます。</p></div><span class="date-chip">7卓 · 架空の営業データ</span></div>
+        <section class="hero-card"><div><span class="tag">まずはこちらから</span><h2>店員も、お客さんも。<br>完成後の流れが見えるモック。</h2><p>実装済みのフリー営業と、LINE・QR・ポイント・セットの将来案を、状態表示で区別しています。</p><div class="actions"><a class="button primary" href="#/demo-guide">営業フローを体験する →</a><a class="button secondary" href="#/explain">5〜10分の説明を始める</a></div></div><div class="hero-mark" aria-hidden="true"><span>波</span><small>MAHJONG WAVE</small></div></section>
+        <section class="stats-grid" aria-label="システムの概要"><article class="metric"><span>店舗の卓数</span><strong>7<small>卓</small></strong><p>フリーとセットの運用を体験</p></article><article class="metric"><span>操作をひとつにつなぐ</span><strong>受付 → 営業終了</strong><p>卓・対局・成績のデータが連動</p></article><article class="metric"><span>製品の状況を区別</span><strong>5<small>つの状態</small></strong><p>実装済み／一部／予定／検証／未確定</p></article></section>
+        <section class="panel"><h2>このモックで確認できること</h2><div class="feature-grid"><div><h3>店員のフリー営業</h3><p>名前だけの受付、4人の配置、結果入力、交代、退店、営業終了。</p></div><div><h3>お客さんの利用イメージ</h3><p>公開同意、本人の成績、QR、ポイント、認証・復旧の模擬操作。</p></div><div><h3>今後の店舗運営</h3><p>セット予約、番責、前貸し、現金、在庫、日報、CSV出力。</p></div><div><h3>検討中の選択肢</h3><p>LINEの2案、QR受付の2方式、AWSと現行想定構成の比較。</p></div></div></section>
+        <noscript><section class="notice warning"><h2>JavaScriptが無効です</h2><p>上の概要は確認できます。ボタンによる状態更新にはJavaScriptを有効にしてください。</p><p><a href="docs/README.html">開き方と機能一覧を読む</a> · <a href="docs/FEATURES.md">機能一覧資料</a> · <a href="docs/PRESENTATION.md">説明手順</a></p></section></noscript>
+      </main>
+      <footer class="page-footer"><span>麻雀ウェーブ · 説明用モック</span><span>コード調査基準：2026-11-10 · 製品 d03fd98</span><a href="#/issues">導入前の確認事項</a></footer>
+    </div>
+  </div>
+  <div class="nav-scrim" id="nav-scrim" hidden></div>
+  <div class="toast" id="toast" role="status" hidden></div>
+  <dialog id="modal" aria-labelledby="modal-title"><div class="modal-head"><h2 id="modal-title">確認</h2><button class="icon-button" data-action="close-modal" aria-label="閉じる">×</button></div><div id="modal-body"></div><div id="modal-actions" class="actions"></div></dialog>
+</body>
+</html>

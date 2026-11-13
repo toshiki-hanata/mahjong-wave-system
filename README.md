@@ -1,5 +1,18 @@
 # 麻雀ウェーブ 店舗・成績管理システム
 
+## 現在の作業場所と資料（2026-11-14）
+
+正本は `C:\Users\toshi\Desktop\麻雀ウェーブシステム` です。旧OneDrive側を新しい開発の起点にしないでください。
+
+- [ChatGPT向け引き継ぎ報告](docs/HANDOVER_CHATGPT.md)
+- [整理内容と保管先](docs/REPOSITORY_CLEANUP.md)
+- [継続開発リスト](docs/DEVELOPMENT_BACKLOG.md)
+- [96画面の操作モック](mock/index.html) / [開き方](mock/README.md)
+- [全96画面・操作案内付きPDF](mock/docs/麻雀ウェーブ_全96画面モック_操作案内付き.pdf)
+
+**GitHubのmain、ローカルの最新実装、独立モックは進捗が異なります。** PDFは `codex/mock-screen-pdf` へpush済みですが、WebモックのVercel公開は未完了です。詳細は引き継ぎ報告を参照してください。
+
+
 継続開発の優先順位・追加仕様・未確定事項は [継続開発リスト](docs/DEVELOPMENT_BACKLOG.md) を参照してください。
 受付の操作手順と検証状況は [スマホ受付の改善](docs/MOBILE_RECEPTION.md) に記載しています。
 既存客の移行準備には[紙・Excel名簿の照合](docs/CUSTOMER_RECONCILIATION.md)を利用できます（照合だけで、登録・統合・ポイント移行はしません）。
