@@ -22,13 +22,24 @@ const actionErrors: Record<string, string> = {
   "not-correctable": "このGameは訂正できない状態です。画面を更新してください。",
 };
 
-export default async function TablesPage({ searchParams }: { searchParams: Promise<{ error?: string; inactive?: string }> }) {
+export default async function TablesPage({ searchParams }: { searchParams: Promise<{ error?: string; inactive?: string; state?: string | string[] }> }) {
   const staff = await requireRole(tableOperationRoles);
-  const { error, inactive } = await searchParams;
+  const { error, inactive, state } = await searchParams;
   const { tables, waitingVisits, recentSessions } = await getTablePageData(prisma, staff.storeId);
   const canManage = staff.role === Role.OWNER || staff.role === Role.MANAGER;
   const showInactive = canManage && inactive === "1";
-  const visibleTables = tables.filter((table) => table.isActive || showInactive);
+  const selectedState = state === "available" || state === "free" ? state : "all";
+  const activeTables = tables.filter((table) => table.isActive);
+  const availableCount = activeTables.filter((table) => !table.sessions.length).length;
+  const freeCount = activeTables.length - availableCount;
+  const visibleTables = tables.filter((table) => (table.isActive || showInactive)
+    && (selectedState === "all" || (table.isActive && (selectedState === "free" ? table.sessions.length > 0 : table.sessions.length === 0))));
+  const listHref = (filter: string, includeInactive = showInactive) => {
+    const params = new URLSearchParams();
+    if (filter !== "all") params.set("state", filter);
+    if (includeInactive) params.set("inactive", "1");
+    return "/admin/tables" + (params.size ? "?" + params.toString() : "");
+  };
   const inactiveCount = tables.filter((table) => !table.isActive).length;
 
   return <div className="page-content tables-page">
@@ -38,14 +49,20 @@ export default async function TablesPage({ searchParams }: { searchParams: Promi
 
     <section className="tables-section" aria-labelledby="tables-list-title">
       <div className="table-section-heading"><div><h2 id="tables-list-title">店舗の卓</h2><p>空き卓から待機客4人を選ぶと開始できます。</p></div><span className="waiting-total">待機中 <strong>{waitingVisits.length}</strong> 名</span></div>
-      {canManage && inactiveCount > 0 && <p className="table-help"><a href={showInactive ? "/admin/tables" : "/admin/tables?inactive=1"}>{showInactive ? "営業用の卓だけ表示する" : `保管・無効の卓 ${inactiveCount}件を確認`}</a></p>}
+      {canManage && inactiveCount > 0 && <p className="table-help"><a href={showInactive ? listHref(selectedState, false) : listHref("all", true)}>{showInactive ? "営業用の卓だけ表示する" : `保管・無効の卓 ${inactiveCount}件を確認`}</a></p>}
       {tables.length === 0 && <p className="table-empty-state">卓マスタはまだありません。OWNERまたはMANAGERが下のフォームから卓を追加できます。</p>}
+      <nav className="table-state-filter" aria-label="卓の状態で絞り込む">
+        <a href={listHref("all")} aria-current={selectedState === "all" ? "page" : undefined}><span>すべての営業卓</span><strong>{prisma ? activeTables.length : "—"}<small>卓</small></strong></a>
+        <a href={listHref("available")} aria-current={selectedState === "available" ? "page" : undefined}><span>空き卓</span><strong>{prisma ? availableCount : "—"}<small>卓</small></strong></a>
+        <a href={listHref("free")} aria-current={selectedState === "free" ? "page" : undefined}><span>フリー</span><strong>{prisma ? freeCount : "—"}<small>卓</small></strong></a>
+      </nav>
+      {tables.length > 0 && visibleTables.length === 0 && <p className="table-empty-state" role="status">{selectedState === "available" ? "現在、空き卓はありません。" : selectedState === "free" ? "現在、フリーで利用中の卓はありません。" : "営業用の卓がありません。OWNERまたはMANAGERが卓の設定を確認してください。"}</p>}
       <div className="table-card-grid">
         {visibleTables.map((table) => {
           const session = table.sessions[0];
           const seats = session?.seats ?? [];
           return <article className={`panel table-operation-card${!table.isActive ? " is-inactive" : ""}`} key={table.id}>
-            <header className="table-card-heading"><div><span className={`table-state-dot${session ? " is-playing" : ""}`} /><div><h3>{table.name}</h3><p>{!table.isActive ? "無効" : session ? "稼働中" : "空き卓"}{session ? ` · 開始 ${formatVisitDateTime(session.startedAt, staff.storeTimezone)}` : ""}</p></div></div><span className="table-order">順序 {table.sortOrder}</span></header>
+            <header className="table-card-heading"><div><span className={`table-state-dot${session ? " is-playing" : ""}`} /><div><h3>{table.name}</h3><p>{!table.isActive ? "無効" : session ? "フリー" : "空き卓"}{session ? ` · 開始 ${formatVisitDateTime(session.startedAt, staff.storeTimezone)}` : ""}</p></div></div><span className="table-order">順序 {table.sortOrder}</span></header>
             {session ? <>
               <div className="physical-seat-grid">{[1, 2, 3, 4].map((position) => {
                 const seat = seats.find((item) => item.position === position);
