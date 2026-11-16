@@ -2,7 +2,7 @@
 
 ## 初期状態と範囲
 
-正本Desktop、開発ブランチcodex/mobile-reception、開始HEAD f825898。既存未コミットはpackage.json/package-lock.jsonのSimpleWebAuthn準備とprototype/app.jsの空行。退避・破棄せず、今回の変更と分ける。mainと開発の差は初期確認で2対19コミット、mainはPDFのPRを含む旧版本体。main反映・push・本番デプロイは行わない。
+正本Desktop、開発ブランチcodex/mobile-reception、開始HEAD f825898。既存未コミットはpackage.json/package-lock.jsonのSimpleWebAuthn準備とprototype/app.jsの空行。退避・破棄せず、今回の変更と分ける。GitHubのorigin/mainと開発の差は初期確認で2対19コミット、mainはPDFのPRを含む旧版本体。main反映・push・本番デプロイは行わない。
 
 先行対象はスタッフのフリー営業。顧客認証・マイページ・LINE移行・自動ポイント・特典交換・セット予約・モック公開は対象外。ローカルVercel設定・CI workflowなし。外部Vercel/Neonの実設定は未確認。
 
@@ -178,11 +178,13 @@ npm.cmd audit --omit=dev --audit-level=low
 
 ## Git・既存差分
 
-開発ブランチcodex/mobile-receptionでのみローカルコミット。登録13cce78、認証修正f7a4ad9、依存修正c3a5428に続き、共有制限・運用ガードと最終報告を保存する。mainへの変更、push、外部デプロイはしていない。mainと開発は開始時2対19コミットの差があり、旧mainを安全な切戻し先とは扱わない。
+開発ブランチcodex/mobile-receptionでのみローカルコミット。登録13cce78、認証修正f7a4ad9、依存修正c3a5428に続き、共有制限・運用ガードと最終報告を保存する。mainへの変更、push、外部デプロイはしていない。GitHubのorigin/mainと開発は開始時2対19コミットの差があり、旧mainを安全な切戻し先とは扱わない。
 
 開始時のpackage.json/package-lock.jsonのSimpleWebAuthn準備とprototype/app.jsの空行は未コミットのまま保存。実.envとprototype/app.jsは開始時ハッシュと一致。packageのセキュリティoverrideだけを別にコミットし、WebAuthn準備を混ぜていない。既存prototypeの空行にあったtrailing whitespaceも勝手に書き換えない。
 
 DB schema・migration・seed、実アカウント、既存顧客・対局・ポイントは変更しない。自動テスト出力はGitに含めない。これは本番利用許可や全脆弱性がないことの保証ではない。
+
+最終照合：P0改修コミットa003746、ローカルmainは35db9de（10/12の初期コミット）、追跡origin/mainはf287bc6、追跡origin/codex/mobile-receptionはf825898。今回ローカルmainは更新していない。a003746時点で開発は追跡ブランチより4コミット先行、このGit説明の追記も別のローカル文書コミットとする。pushはしない。
 
 ## 今回の変更ファイル（開始HEADから）
 
