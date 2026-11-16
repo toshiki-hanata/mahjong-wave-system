@@ -7,11 +7,12 @@
 - [ChatGPT向け引き継ぎ報告](docs/HANDOVER_CHATGPT.md)
 - [整理内容と保管先](docs/REPOSITORY_CLEANUP.md)
 - [開発起動・デバッグ手順と確認結果](docs/DEBUGGING.md)
+- [スマホ基本操作の改善・確認記録](docs/MOBILE_OPERATIONS_QA.md)
 - [継続開発リスト](docs/DEVELOPMENT_BACKLOG.md)
 - [96画面の操作モック](mock/index.html) / [開き方](mock/README.md)
 - [全96画面・操作案内付きPDF](mock/docs/麻雀ウェーブ_全96画面モック_操作案内付き.pdf)
 
-**GitHubのmain、ローカルの最新実装、独立モックは進捗が異なります。** 最新一式の共有ブランチは `codex/mobile-reception`、PDFだけの共有ブランチは `codex/mock-screen-pdf` です。WebモックのVercel公開は未完了です。詳細は引き継ぎ報告を参照してください。
+**GitHubのmain、ローカルの最新実装、独立モックは進捗が異なります。** 最新一式の共有ブランチは `codex/mobile-reception`、PDFだけの共有ブランチは `codex/mock-screen-pdf` です。モックのWeb公開は2026-11-16の指示で見送りです。詳細は引き継ぎ報告を参照してください。
 
 
 継続開発の優先順位・追加仕様・未確定事項は [継続開発リスト](docs/DEVELOPMENT_BACKLOG.md) を参照してください。
