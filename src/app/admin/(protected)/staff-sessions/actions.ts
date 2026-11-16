@@ -1,4 +1,5 @@
 "use server";
+import { requireStaffActionPermit } from "@/lib/auth/staff-action-permit";
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -12,6 +13,7 @@ export async function revokeStaffSessionsAction(formData: FormData): Promise<nev
   const parsed = z.string().trim().min(1).max(100).safeParse(formData.get("staffId"));
   if (!parsed.success || !prisma) redirect("/admin/staff-sessions?error=invalid");
   if (parsed.data === actor.id) redirect("/admin/staff-sessions?error=self");
+  await requireStaffActionPermit(actor);
   const target = await prisma.staff.findFirst({ where: { id: parsed.data, storeId: actor.storeId }, select: { role: true } });
   if (!target || (actor.role === "MANAGER" && target.role === "OWNER")) redirect("/admin/staff-sessions?error=not-found");
   const revoked = await revokeStaffSessions(prisma, parsed.data, { storeId: actor.storeId, actorStaffId: actor.id });

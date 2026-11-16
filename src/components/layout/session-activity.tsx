@@ -26,11 +26,13 @@ export function SessionActivity({ idleExpiresAt, expiresAt }: { idleExpiresAt: n
     const timer = window.setInterval(checkExpiry, 1000);
     window.addEventListener("pointerdown", onActivity, { passive: true });
     window.addEventListener("keydown", onActivity);
+    window.addEventListener("wheel", onActivity, { passive: true });
     document.addEventListener("visibilitychange", checkExpiry);
     return () => {
       disposed = true; window.clearInterval(timer);
       window.removeEventListener("pointerdown", onActivity);
       window.removeEventListener("keydown", onActivity);
+      window.removeEventListener("wheel", onActivity);
       document.removeEventListener("visibilitychange", checkExpiry);
     };
   }, [idleExpiresAt, expiresAt]);

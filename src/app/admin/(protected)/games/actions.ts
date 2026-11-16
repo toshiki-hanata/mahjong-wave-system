@@ -1,4 +1,5 @@
 "use server";
+import { requireStaffActionPermit } from "@/lib/auth/staff-action-permit";
 
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
@@ -34,6 +35,7 @@ export async function createStoreRuleAction(_previous: GameActionState, formData
   });
   if (!parsed.success) return { message: parsed.error.issues[0]?.message ?? "入力内容を確認してください。" };
   if (!prisma) return { message: "データベースへ接続できません。" };
+  await requireStaffActionPermit(staff);
   try {
     const version = await createStoreRuleVersion(prisma, parsed.data, { storeId: staff.storeId, staffId: staff.id });
     revalidatePath("/admin/store-rules"); revalidatePath("/admin/tables");
@@ -63,6 +65,7 @@ export async function createGameAction(_previous: GameFormState, formData: FormD
   if (!parsed.success) return { message: "4人の持ち点と入力画面を確認してください。点数は保持しています。" };
   if (!prisma) return { message: "データベースへ接続できません。点数は保持しています。" };
   let result;
+  await requireStaffActionPermit(staff);
   try {
     result = await createGame(prisma, parsed.data, { storeId: staff.storeId, staffId: staff.id });
   } catch (error) { return gameFormError(error); }
@@ -78,6 +81,7 @@ export async function correctGameAction(_previous: GameFormState, formData: Form
   if (!prisma) return { message: "データベースへ接続できません。入力は保持しています。" };
   let result;
   let sessionId: string;
+  await requireStaffActionPermit(staff);
   try {
     const original = await prisma.game.findFirst({ where: { id: parsed.data.gameId, storeId: staff.storeId }, select: { tableSessionId: true } });
     if (!original) return { message: "対局が見つかりません。", needsRefresh: true };

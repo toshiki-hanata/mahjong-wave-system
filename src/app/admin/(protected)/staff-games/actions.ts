@@ -1,4 +1,5 @@
 "use server";
+import { requireStaffActionPermit } from "@/lib/auth/staff-action-permit";
 import { Prisma } from "@prisma/client";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
@@ -14,6 +15,7 @@ export async function checkInStaffParticipantAction(_previous: StaffParticipatio
   const parsed = staffParticipationInputSchema.safeParse({ participantStaffId: formData.get("participantStaffId"), requestKey: formData.get("requestKey") });
   if (!parsed.success) return { message: "参加するスタッフを選択してください。画面を更新して再度お試しください。" };
   if (!prisma) return { message: "データベースへ接続できません。" };
+  await requireStaffActionPermit(staff);
   try {
     await checkInStaffParticipant(prisma, parsed.data, { storeId: staff.storeId, staffId: staff.id });
   } catch (error) {

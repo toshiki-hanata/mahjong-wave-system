@@ -1,4 +1,5 @@
 "use server";
+import { requireStaffActionPermit } from "@/lib/auth/staff-action-permit";
 import { Prisma } from "@prisma/client";
 import { requireStaff } from "@/lib/auth/current-staff";
 import { prisma } from "@/lib/prisma";
@@ -7,6 +8,7 @@ import { previewRoster, type RosterPreview } from "@/features/customers/roster-r
 export async function previewRosterAction(_previous: RosterPreview, formData: FormData): Promise<RosterPreview> {
   const staff = await requireStaff();
   if (!prisma) return { message: "名簿を照合できません。接続状態を確認してください。" };
+  await requireStaffActionPermit(staff);
   try {
     return await previewRoster(prisma, staff.storeId, formData.get("roster"));
   } catch (error) {

@@ -1,5 +1,6 @@
 "use server";
 
+import { assertRuntimeDatabaseRole } from "@/lib/security/database-role";
 import { logSecurityEvent } from "@/lib/security/security-log";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -29,6 +30,7 @@ export async function loginAction(_previous: LoginFormState, formData: FormData)
 
   const database = prisma;
   try {
+    await assertRuntimeDatabaseRole(database);
     const requestHeaders = await headers();
     // Vercel replaces x-forwarded-for at its trusted edge. Do not trust caller
     // supplied forwarding headers on other hosting environments.

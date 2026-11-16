@@ -21,3 +21,6 @@ generated/prisma/
 /mock/tests/browser-results-local.json
 /mock/tests/qa-download.csv
 /mock/tests/download-*.csv
+
+# Local test reporter output; never commit logs or fixture results.
+.vitest/

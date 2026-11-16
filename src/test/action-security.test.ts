@@ -75,3 +75,33 @@ describe("Server Action authorization boundaries", () => {
     expect(boundary.databaseAccess).not.toHaveBeenCalled();
   });
 });
+
+import { createCustomerAction, updateCustomerAction, deactivateCustomerAction } from "@/app/admin/(protected)/customers/actions";
+import { previewRosterAction } from "@/app/admin/(protected)/customers/reconcile/actions";
+import { adjustPointsAction, reversePointsAction } from "@/app/admin/(protected)/customers/[id]/points/actions";
+import { issuePairingAction, confirmStaffPairingAction, cancelPairingAction } from "@/app/admin/(protected)/customers/[id]/link/actions";
+import { revokeStaffSessionsAction } from "@/app/admin/(protected)/staff-sessions/actions";
+import { updateRankingSettingsAction } from "@/app/admin/(protected)/rankings/actions";
+
+const extraActions = [
+  ["create customer", () => createCustomerAction({}, forgedForm())],
+  ["edit customer", () => updateCustomerAction("other-customer", {}, forgedForm())],
+  ["deactivate customer", () => deactivateCustomerAction(forgedForm())],
+  ["preview roster", () => previewRosterAction({}, forgedForm())],
+  ["adjust points", () => adjustPointsAction("other-customer", {}, forgedForm())],
+  ["reverse points", () => reversePointsAction("other-customer", {}, forgedForm())],
+  ["issue pairing", () => issuePairingAction("other-customer", {}, forgedForm())],
+  ["confirm staff pairing", () => confirmStaffPairingAction("other-customer", {}, forgedForm())],
+  ["cancel pairing", () => cancelPairingAction("other-customer", {}, forgedForm())],
+  ["revoke staff sessions", () => revokeStaffSessionsAction(forgedForm())],
+  ["ranking settings", () => updateRankingSettingsAction(forgedForm())],
+] as const;
+describe("remaining protected Server Action boundaries", () => {
+  it.each(extraActions)("rejects direct anonymous %s", async (_name, invoke) => {
+    boundary.signedIn = false; await expect(invoke()).rejects.toBe(boundary.unauthenticated);
+    expect(boundary.databaseAccess).not.toHaveBeenCalled();
+  });
+  it.each(extraActions.filter(([name]) => ["deactivate customer", "adjust points", "reverse points", "revoke staff sessions", "ranking settings"].includes(name)))("rejects STAFF privilege escalation in %s", async (_name, invoke) => {
+    await expect(invoke()).rejects.toBe(boundary.forbidden); expect(boundary.databaseAccess).not.toHaveBeenCalled();
+  });
+});

@@ -1,4 +1,5 @@
 "use server";
+import { requireStaffActionPermit } from "@/lib/auth/staff-action-permit";
 import { Prisma } from "@prisma/client";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
@@ -22,6 +23,7 @@ export async function adjustPointsAction(customerId: string, _previous: PointFor
   const parsed = pointAdjustmentSchema.safeParse({ customerId, requestKey: formData.get("requestKey"), expectedBalance: Number(formData.get("expectedBalance")), reason: formData.get("reason"), delta: direction === "add" ? amount : -amount });
   if (!parsed.success) return { message: "ポイント数と理由を確認してください。画面を更新して再度お試しください。" };
   if (!prisma) return { message: "データベースへ接続できません。" };
+  await requireStaffActionPermit(actor);
   try { await adjustPoints(prisma, parsed.data, { storeId: actor.storeId, staffId: actor.id }); } catch (error) { return message(error); }
   revalidatePath(`/admin/customers/${customerId}/points`);
   redirect(`/admin/customers/${encodeURIComponent(customerId)}/points?notice=adjusted`);
@@ -31,6 +33,7 @@ export async function reversePointsAction(customerId: string, _previous: PointFo
   const parsed = pointReversalSchema.safeParse({ customerId, requestKey: formData.get("requestKey"), expectedBalance: Number(formData.get("expectedBalance")), reason: formData.get("reason"), entryId: formData.get("entryId") });
   if (!parsed.success) return { message: "取消理由を入力し、画面を更新して再度お試しください。" };
   if (!prisma) return { message: "データベースへ接続できません。" };
+  await requireStaffActionPermit(actor);
   try { await reversePointAdjustment(prisma, parsed.data, { storeId: actor.storeId, staffId: actor.id }); } catch (error) { return message(error); }
   revalidatePath(`/admin/customers/${customerId}/points`);
   redirect(`/admin/customers/${encodeURIComponent(customerId)}/points?notice=reversed`);

@@ -1,4 +1,5 @@
 import "server-only";
+import { assertRuntimeDatabaseRole } from "@/lib/security/database-role";
 
 import { redirect } from "next/navigation";
 import type { Role } from "@prisma/client";
@@ -35,6 +36,7 @@ export async function getCurrentStaff(): Promise<CurrentStaff | null> {
   });
   if (!parsed.success || !isStaffSessionFresh(parsed.data) || !prisma) { logSecurityEvent("SESSION_REJECTED"); return null; }
 
+  await assertRuntimeDatabaseRole(prisma);
   const staff = await prisma.staff.findFirst({
     where: { id: parsed.data.staffId, storeId: parsed.data.storeId },
     select: {

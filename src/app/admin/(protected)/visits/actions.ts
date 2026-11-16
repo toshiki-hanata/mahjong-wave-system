@@ -1,4 +1,5 @@
 "use server";
+import { requireStaffActionPermit } from "@/lib/auth/staff-action-permit";
 
 import { Prisma, VisitStatus } from "@prisma/client";
 import { revalidatePath } from "next/cache";
@@ -34,6 +35,7 @@ export async function quickReceptionAction(_previous: QuickReceptionState, formD
   });
   if (!parsed.success) return { fieldError: parsed.error.issues[0]?.message ?? "入力内容を確認してください。" };
   if (!prisma) return { message: "データベースへ接続できません。入力を残したまま、時間をおいてお試しください。" };
+  await requireStaffActionPermit(staff);
   try {
     const customer = await registerAndCheckIn(prisma, parsed.data, { storeId: staff.storeId, staffId: staff.id });
     revalidatePath("/admin/visits");
@@ -62,6 +64,7 @@ export async function checkInVisitAction(_previous: VisitActionState, formData: 
   if (!parsed.success) return { message: "有効な顧客を選択してください。" };
   if (!prisma) return { message: "データベースへ接続できません。" };
 
+  await requireStaffActionPermit(staff);
   try {
     await checkInVisit(prisma, parsed.data.customerId, { storeId: staff.storeId, staffId: staff.id });
   } catch (error) {
@@ -84,6 +87,7 @@ export async function checkOutVisitAction(_previous: VisitActionState, formData:
   if (!parsed.success) return { message: "来店情報を確認できません。" };
   if (!prisma) return { message: "データベースへ接続できません。" };
 
+  await requireStaffActionPermit(staff);
   try {
     const checkedOut = await checkOutVisit(prisma, parsed.data.visitId, { storeId: staff.storeId, staffId: staff.id });
     if (!checkedOut) return { message: "来店情報が見つかりません。" };

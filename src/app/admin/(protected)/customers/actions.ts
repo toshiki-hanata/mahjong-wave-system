@@ -1,4 +1,5 @@
 "use server";
+import { requireStaffActionPermit } from "@/lib/auth/staff-action-permit";
 
 import { Prisma, Role } from "@prisma/client";
 import { revalidatePath } from "next/cache";
@@ -43,6 +44,7 @@ export async function createCustomerAction(_previous: CustomerFormState, formDat
   if (!parsed.success) return validationState(parsed.error);
   if (!prisma) return { message: "DATABASE_URLが設定されていないため、保存できません。" };
   let id: string;
+  await requireStaffActionPermit(staff);
   try {
     id = await createCustomer(prisma, parsed.data, { storeId: staff.storeId, staffId: staff.id });
   } catch (error) {
@@ -58,6 +60,7 @@ export async function updateCustomerAction(customerId: string, _previous: Custom
   const parsed = customerUpdateSchema.safeParse(rawValues(formData));
   if (!parsed.success) return validationState(parsed.error);
   if (!prisma) return { message: "DATABASE_URLが設定されていないため、保存できません。" };
+  await requireStaffActionPermit(staff);
   try {
     const updated = await updateCustomer(prisma, customerId, parsed.data, { storeId: staff.storeId, staffId: staff.id });
     if (!updated) return { message: "顧客が見つかりません。" };
@@ -74,6 +77,7 @@ export async function deactivateCustomerAction(formData: FormData): Promise<void
   const staff = await requireRole([Role.OWNER, Role.MANAGER]);
   const customerId = formData.get("customerId");
   if (typeof customerId !== "string" || !customerId || !prisma) redirect("/admin/customers");
+  await requireStaffActionPermit(staff);
   const deactivated = await deactivateCustomer(prisma, customerId, { storeId: staff.storeId, staffId: staff.id });
   if (deactivated) {
     revalidatePath("/admin/customers");

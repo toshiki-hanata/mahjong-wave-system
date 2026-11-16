@@ -1,4 +1,5 @@
 "use server";
+import { requireStaffActionPermit } from "@/lib/auth/staff-action-permit";
 
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
@@ -29,6 +30,7 @@ export async function updateBusinessDayTimesAction(_previous: BusinessDayActionS
   if (!parsed.success) return { message: parsed.error.issues[0].message };
   if (!prisma) return { message: "データベースへ接続できません。" };
   if (formData.get("confirmed") !== "on") return { message: "記録内容を確認して確認欄を選択してください。" };
+  await requireStaffActionPermit(staff);
   try {
     const result = await updateBusinessDayTimes(prisma, parsed.data, { storeId: staff.storeId, staffId: staff.id });
     refreshBusinessPages();
@@ -40,6 +42,7 @@ export async function openBusinessDayAction(_previous: BusinessDayActionState, f
   const staff = await requireStaff();
   const key = z.uuid().safeParse(formData.get("requestKey"));
   if (!key.success || !prisma) return { message: "営業開始の情報を確認できません。画面を更新してください。" };
+  await requireStaffActionPermit(staff);
   try {
     const result = await openBusinessDay(prisma, key.data, { storeId: staff.storeId, staffId: staff.id });
     refreshBusinessPages();
@@ -52,6 +55,7 @@ export async function closeBusinessDayAction(_previous: BusinessDayActionState, 
   const id = z.string().min(1).max(200).safeParse(formData.get("businessDayId"));
   if (!id.success || !prisma) return { message: "営業情報を確認できません。画面を更新してください。" };
   if (formData.get("confirmed") !== "on") return { message: "本数・売上と退店状況の確認欄を選択してください。" };
+  await requireStaffActionPermit(staff);
   try {
     const result = await closeBusinessDay(prisma, id.data, { storeId: staff.storeId, staffId: staff.id });
     refreshBusinessPages();
@@ -63,6 +67,7 @@ export async function updateFreeGamePriceAction(_previous: BusinessDayActionStat
   const staff = await requireRole(["OWNER", "MANAGER"]);
   const price = z.string().regex(/^\d+$/).transform(Number).pipe(z.number().int().min(0).max(1_000_000)).safeParse(formData.get("priceYen"));
   if (!price.success || !prisma) return { message: "料金は0〜1,000,000円の整数で入力してください。" };
+  await requireStaffActionPermit(staff);
   try {
     await updateFreeGamePrice(prisma, price.data, { storeId: staff.storeId, staffId: staff.id });
     refreshBusinessPages();

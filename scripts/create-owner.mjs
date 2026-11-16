@@ -73,8 +73,8 @@ try {
     });
   });
   console.log("Initial Store and OWNER account created. Keep the entered login ID private.");
-} catch (error) {
-  console.error(error instanceof Error ? error.message : "Owner setup failed.");
+} catch {
+  console.error("Owner setup failed. Check the input and authorized database settings; secret values are not printed.");
   process.exitCode = 1;
 } finally {
   readline.close();

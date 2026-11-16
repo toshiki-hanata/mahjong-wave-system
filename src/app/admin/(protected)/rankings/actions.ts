@@ -1,4 +1,5 @@
 "use server";
+import { requireStaffActionPermit } from "@/lib/auth/staff-action-permit";
 
 import { Role } from "@prisma/client";
 import { revalidatePath } from "next/cache";
@@ -15,6 +16,7 @@ export async function updateRankingSettingsAction(formData: FormData): Promise<v
     lifetimeMinimumGames: formData.get("lifetimeMinimumGames"),
   });
   if (!parsed.success || !prisma) redirect("/admin/rankings/settings?error=invalid");
+  await requireStaffActionPermit(staff);
   await updateRankingSettings(prisma, parsed.data, { storeId: staff.storeId, staffId: staff.id });
   revalidatePath("/admin/rankings");
   revalidatePath("/admin/rankings/settings");

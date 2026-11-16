@@ -1,5 +1,6 @@
 "use server";
 
+import { requireStaffActionPermit } from "@/lib/auth/staff-action-permit";
 import { getCurrentStaff } from "@/lib/auth/current-staff";
 import { touchAdminSession } from "@/lib/auth/session";
 import { STAFF_SESSION_POLICY } from "@/lib/auth/session-policy";
@@ -11,6 +12,7 @@ export async function refreshStaffSessionAction(): Promise<SessionActivityResult
   try {
     const staff = await getCurrentStaff();
     if (!staff) return { status: "EXPIRED" };
+    await requireStaffActionPermit(staff);
     const touched = await touchAdminSession(staff);
     if (!touched) return { status: "EXPIRED" };
     return { status: "ACTIVE", idleExpiresAt: touched.lastActiveAt + STAFF_SESSION_POLICY.idleMs, expiresAt: touched.issuedAt + STAFF_SESSION_POLICY.absoluteMs };

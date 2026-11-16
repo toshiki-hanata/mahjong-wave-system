@@ -167,77 +167,87 @@
 
 | ID・対策 | 優先度 | 状態 | 対象コード・設定 | 現在の実装 | 発見した問題 | 完了条件 | テスト方法 | 残存リスク |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| SEC-01 OWNER・MANAGERのMFA | P0 | 未実装 | src/lib/auth/credentials.ts / Vercel保護設定 | パスワードのみ | 管理者の追加認証なし | 管理者MFAと紛失復旧を検証、または承認済み代替保護を確認 | MFAなし・誤コード・復旧・紛失時を試験 | 管理アカウント侵害 |
-| SEC-02 スタッフのパスワードハッシュ | P0 | 一部実装 | src/lib/auth/password.ts | bcrypt cost 12、72byte制限・未知IDのダミー比較 | 現存ハッシュと運用方針は未確認 | ハッシュ・比較・長さ制限の回帰成功、実アカウントを変更せず方式確認 | auth.test.ts、不正・長大・誤パスワード | 既存の弱いパスワードは別途点検 |
-| SEC-03 ログイン試行制限 | P0 | 一部実装 | src/lib/auth/login-rate-limit.ts / login/actions.ts | PostgreSQL共有バケット、IP上限とID遅延、HMACキー | 実環境のIPヘッダー・分散動作の受入未確認 | 並行予約で上限超過なし、DB障害時に認証不可 | login-rate-limit.test.ts、分散DB試験 | 共有IPのロックアウト・負荷 |
-| SEC-04 Cookie保護・ログアウト失効 | P0 | 一部実装 | src/lib/auth/session.ts / src/app/admin/actions.ts | 暗号化・HttpOnly・Secure・SameSite・8h | ログアウトはCookie削除だけでコピーCookieが再利用可能 | 旧CookieのDB検証拒否・全端末失効とCookie削除を検証 | session/現行スタッフ/logoutの回帰 | DB停止時の失効処理と盗難Cookie |
-| SEC-05 未操作セッション失効 | P0 | 未実装 | src/lib/auth/session-data.ts / session.ts | 最大8hのみ、未操作期限なし | 放置端末から操作可能 | 承認済み30分未操作・最大8h、操作による更新と期限超過拒否 | 時計境界・再送・更新・失効試験 | ブラウザーを閉じるだけでは失効しない |
-| SEC-06 退職・端末紛失時の停止 | P0 | 一部実装 | src/lib/auth/current-staff.ts / staff-security-service.ts | isActive・store有効・role・sessionVersionを毎回DB照合 | 停止手順と運用の受入未完了 | 無効化・復帰・パスワード変更後も古いCookieを拒否 | staff-security-service/auth回帰 | 停止の連絡遅れ・運用権限 |
+| SEC-01 OWNER・MANAGERのMFA | P0 | 未実装 | src/lib/auth/credentials.ts / Vercel保護設定 | MFA未実装。Vercel productionはconfigとinstrumentationで停止 | ユーザー承認：管理者MFAの実装・検証完了まで本番公開禁止 | 管理者MFA・秘密保護・再利用拒否・復旧を実装検証するまで本番公開しない | 本番フラグでローカル起動exit 1を確認。MFA自体の試験は未実施 | 管理アカウント侵害 |
+| SEC-02 スタッフのパスワードハッシュ | P0 | 一部実装 | src/lib/auth/password.ts | bcrypt cost 12、72byte上限・未知IDダミー比較をコードとテストで確認 | 既存全アカウントのハッシュ強度・パスワード運用の受入は未確認 | ハッシュ・比較・長さ制限の回帰成功、実アカウントを変更せず方式確認 | auth.test.tsと入力境界が成功。アカウント変更なし | 既存の弱いパスワードは別途点検 |
+| SEC-03 ログイン試行制限 | P0 | 一部実装 | src/lib/auth/login-rate-limit.ts / login/actions.ts | PostgreSQL共有バケット、IP上限・ID遅延・HMAC。単体成功 | 本番エッジのIP・分散ログイン負荷の受入は未確認 | 並行予約で上限超過なし、DB障害時に認証不可 | login-rate-limit.test.ts成功。実Vercel分散ログイン未検証 | 共有IPのロックアウト・負荷 |
+| SEC-04 Cookie保護・ログアウト失効 | P0 | 検証済み | src/lib/auth/session.ts / src/app/admin/actions.ts | 保護Cookie、署名時刻、条件付きsessionVersion増加で全端末失効 | Cookie削除だけの失効を修正。DB失敗時は全端末失効成功と表示しない | 旧CookieのDB検証拒否・全端末失効とCookie削除を検証 | Cookie属性・再送・失敗単体＋実DBの旧版拒否／監査／rollback成功 | DB停止時の失効処理と盗難Cookie |
+| SEC-05 未操作セッション失効 | P0 | 検証済み | src/lib/auth/session-data.ts / session.ts | 承認済み30分未操作・最長8h、操作時のみ最短1分で更新 | 放置端末の延命を修正。旧形式Cookieは再ログインが必要 | 承認済み30分未操作・最大8h、操作による更新と期限超過拒否 | 時計・更新単体、Chrome/WebKitの操作・放置・通信失敗・絶対期限8ケース成功（Actionはstub） | ブラウザーを閉じるだけでは失効しない |
+| SEC-06 退職・端末紛失時の停止 | P0 | 一部実装 | src/lib/auth/current-staff.ts / staff-security-service.ts | 無効Staff/Store・role変更・失効版をサーバーで再照合 | 人による停止連絡と実運用手順の受入が残る | 無効化・復帰・パスワード変更後も古いCookieを拒否 | 現行スタッフ／停止サービスの拒否単体、実DBの版失効成功 | 停止の連絡遅れ・運用権限 |
 | SEC-07 GitHub・Vercel・Neon管理MFA | P0 | 確認待ち | 外部3サービスの管理アカウント | 管理コンソール未接続 | MFA・復旧コード保管の現状不明 | 本人がMFA・復旧コードと予備認証を確認 | 管理画面の確認記録、復旧手順 | 管理アカウントの乗っ取り |
 
 ### B. アプリ・API
 
 | ID・対策 | 優先度 | 状態 | 対象コード・設定 | 現在の実装 | 発見した問題 | 完了条件 | テスト方法 | 残存リスク |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| SEC-08 全APIのサーバー認可 | P0 | 一部実装 | src/app/**/actions.ts / current-staff.ts | Route Handler 0、Server Actions 33を棚卸し | 既存の認可テストが一部のActionのみ | 全エクスポートを分類し、非公開Actionの未認証・Role偽装を拒否 | Action一覧とテストの差分検出・直接呼出 | 新規Action追加漏れ・本番受入 |
-| SEC-09 ID・URL変更の情報アクセス防止 | P0 | 一部実装 | customer-service.ts / game-queries.ts / point-ledger-service.ts | 所属storeIdで取得、店員は同店の業務情報を閲覧 | 未完成顧客機能の本番遮断が必要 | 他店舗ID拒否、匿名顧客は非公開情報を取得不可 | ID差替・別店舗・非公開顧客の読取回帰 | 同店舗スタッフの業務権限は維持 |
-| SEC-10 未認証アクセス調査 | P0 | 一部実装 | src/proxy.ts / /admin/login / /member/link | 管理画面はDB再認証、ログインと連携が公開入口 | 設定で連携機能を本番有効化できる | 全公開入口を列挙し先行対象外機能を本番遮断 | 匿名GET・改ざんCookie・直接Action | 公開ログインへの攻撃 |
-| SEC-11 SQLi・XSS・入力値 | P0 | 一部実装 | src/features/** / schemas.ts / src/lib/security/headers.ts | Zod、Reactエスケープ、PrismaパラメーターSQL | 全境界の再検証とサイズ制限の確認が必要 | 危険SQL・生HTMLなし、異常入力と境界値を拒否 | 既存入力試験＋注入文字・巨大入力 | 将来の生HTML・SQL導入 |
-| SEC-12 CSRF・重要操作 | P0 | 一部実装 | src/proxy.ts / next.config.mjs | Next標準Origin比較、SameSite、確認フォーム | NextはOrigin欠落を許容する | Origin欠落・null・別Originの更新を拒否、同一Originは正常 | Origin単体・実HTTP POST・Action拒否 | XSSはCSRF保護を迂回し得る |
-| SEC-13 二重更新防止 | P0 | 一部実装 | business-day-service.ts / game-service.ts / point-ledger-service.ts | 行ロック・一意制約・requestKey・追記型訂正 | 実DB同時操作の今回受入未確認 | 営業・受付・半荘・ポイントの再送と競合を検証 | 既存単体＋許可済み隔離DB並行試験 | 実DB・多端末でのロック挙動 |
-| SEC-14 Next.js・依存の脆弱性 | P0 | 検証済み | package.json / package-lock.json | estree配下minimatch 11.0.1へ限定override | 初期moderate7件は全依存・本番依存とも0へ | 限定更新・回帰・監査成功（今回の範囲） | 700パターン比較、275単体・型・lint・標準本番ビルド | 将来の脆弱性・override互換性・ESLint旧版保守 |
-| SEC-15 開発専用機能の本番無効化 | P0 | 一部実装 | auth-config.ts / pairing-cookie.ts / member/link / scripts | 顧客認証は本番承認フラグ、テストはDBマーカー保護 | 承認フラグで未完成機能を開ける | 先行本番は連携の全入口を拒否、テスト・モックを配信しない | production＋preview＋開発の境界試験、ビルド検査 | 外部公開設定は別途確認 |
+| SEC-08 全APIのサーバー認可 | P0 | 検証済み | src/app/**/actions.ts / current-staff.ts | Route Handler 0、Server Actions 34を一覧固定。保護28＋活動更新に認証・操作permit | 既存の認可試験漏れを補完。追加入口は一覧差分テストで検知 | 全エクスポートを分類し、非公開Actionの未認証・Role偽装を拒否 | 全28保護Actionの匿名拒否・権限偽装・一覧回帰成功。公開入口は別途分類 | 新規Action追加漏れ・本番受入 |
+| SEC-09 ID・URL変更の情報アクセス防止 | P0 | 検証済み | customer-service.ts / game-queries.ts / point-ledger-service.ts | storeId境界、ID差替の非公開読取拒否、顧客用入口のhosted遮断 | 店舗外IDを指定しても店員の所属店舗条件を維持 | 他店舗ID拒否、匿名顧客は非公開情報を取得不可 | 実Customer詳細page/サービスの匿名・他店舗ID単体、台帳FK実DB成功 | 同店舗スタッフの業務権限は維持 |
+| SEC-10 未認証アクセス調査 | P0 | 検証済み | src/proxy.ts / /admin/login / /member/link | ログインのみ先行公開入口。匿名管理ページredirect、顧客連携404 | 旧フラグで顧客入口が開く問題を修正 | 全公開入口を列挙し先行対象外機能を本番遮断 | 匿名・偽Cookie・未完成入口の本番モードHTTPとAction直接呼出成功 | 公開ログインへの攻撃 |
+| SEC-11 SQLi・XSS・入力値 | P0 | 一部実装 | src/features/** / schemas.ts / src/lib/security/headers.ts | Zod、Reactエスケープ、パラメーターSQL、nonce CSP。製品に生HTML/unsafe SQLなし | 入力回帰成功。全ての攻撃・将来追加を保証するものではない | 危険SQL・生HTMLなし、異常入力と境界値を拒否 | 既存入力・権限・不正値回帰317件、HTTPでJS例外なし | 将来の生HTML・SQL導入 |
+| SEC-12 CSRF・重要操作 | P0 | 検証済み | src/proxy.ts / next.config.mjs | 全更新HTTPのOrigin欠落/null/別Origin拒否、Actionにも同一Origin検証 | Next標準だけではOrigin欠落を許容するため独自拒否を追加 | Origin欠落・null・別Originの更新を拒否、同一Originは正常 | 単体＋Chrome/WebKitの実POST拒否／同一OriginログインAction成功 | XSSはCSRF保護を迂回し得る |
+| SEC-13 二重更新防止 | P0 | 一部実装 | business-day-service.ts / game-service.ts / point-ledger-service.ts | 行ロック・一意制約・requestKey。営業と台帳の再送・rollbackを実DB確認 | 別接続の半荘・台帳競合は未確認。旧ゲーム並行試験は既存店舗を使うため今回は実行せず、専用Store化が必要 | 営業・受付・半荘・ポイントの再送と競合を検証 | 営業日・台帳実DB成功。別接続10並行の共有quota成功。全業務の実機競合は別 | 実DB・多端末でのロック挙動 |
+| SEC-14 Next.js・依存の脆弱性 | P0 | 検証済み | package.json / package-lock.json | estree配下minimatch 11.0.1へ限定override。全依存・本番依存audit 0 | 初期moderate7件を修正。ESLint9保守警告は後続 | 限定更新・回帰・監査成功（今回の範囲） | 700glob比較差0、317単体・型・lint・標準Turbopack本番用ビルド成功 | 将来の脆弱性・override互換性・ESLint旧版保守 |
+| SEC-15 開発専用機能の本番無効化 | P0 | 検証済み | auth-config.ts / pairing-cookie.ts / member/link / scripts | 全顧客連携をhosted/productionで強制無効化。モック・資料・envは製品配信しない | 承認フラグによる未完成機能の本番公開を防止 | 先行本番は連携の全入口を拒否、テスト・モックを配信しない | production/preview/開発単体と実HTTP404確認。本番フラグの起動拒否成功 | 外部公開設定は別途確認 |
 
 ### C. DB・秘密情報
 
 | ID・対策 | 優先度 | 状態 | 対象コード・設定 | 現在の実装 | 発見した問題 | 完了条件 | テスト方法 | 残存リスク |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| SEC-16 本番DB・開発DB分離 | P0 | 確認待ち | src/lib/prisma.ts / Vercel環境変数 / Neon branches | ローカル接続あり、外部設定は未確認 | 誤接続防止ガードと本番の分離証跡がない | 本番・preview・開発の別接続と誤接続拒否を確認 | 環境設定単体＋手動の接続先照合 | 環境変数の誤設定 |
-| SEC-17 接続情報・キー漏えい防止 | P0 | 一部実装 | .gitignore / .env.example / src/lib / Git履歴 | envはGit除外、クライアント用接続変数なし | 今回の履歴・ビルド再走査が必要 | 作業差分・送出対象・配信物に実秘密なし | 値を出さないパターン走査・ignore確認 | 過去漏えいは削除だけで無効にならない |
+| SEC-16 本番DB・開発DB分離 | P0 | 確認待ち | src/lib/prisma.ts / Vercel環境変数 / Neon branches | 環境ラベル・本番host pinでpreview誤接続を拒否するコードを追加 | 本番専用DBと実Vercel設定の分離証跡は未確認 | 本番・preview・開発の別接続と誤接続拒否を確認 | 誤接続単体成功。ローカル既存DBの非本番マーカーを読取確認 | 環境変数の誤設定 |
+| SEC-17 接続情報・キー漏えい防止 | P0 | 一部実装 | .gitignore / .env.example / src/lib / Git履歴 | env除外、server-only、一般化した例外。作業木・履歴・client buildを非表示走査 | 現在の長いenv値と既知キー形式の走査で一致0。未知／失効済み秘密の網羅保証なし | 作業差分・送出対象・配信物に実秘密なし | 候補293ファイル、ローカル履歴patch、client静的29ファイルを走査。実env不変 | 過去漏えいは削除だけで無効にならない |
 | SEC-18 Vercel環境変数・Secret | P0 | 確認待ち | Vercel Settings → Environment Variables | ローカルにプロジェクト紐付けなし | 本番／previewの権限・Secret設定が不明 | 本人が環境別設定・閲覧権限・ローテーションを確認 | 管理画面でキー名・対象環境だけ照合 | 管理者がSecretを取得できる |
-| SEC-19 DBユーザー最小権限 | P0 | 確認待ち | Neon roles / PostgreSQL GRANT | 実アプリRoleと所有者Roleの分離未確認 | owner接続なら監査・台帳改ざんも可能 | アプリ非owner、DDL禁止、監査追記・台帳改変制限を検証 | 隔離DBでSET ROLEし許可／拒否操作 | 所有者・DB管理者には権限が残る |
-| SEC-20 DB TLS・ネットワーク | P0 | 確認待ち | DATABASE_URL / DIRECT_URL / Neon network settings | 接続設定のTLSパラメーターを非表示点検予定 | 実TLS・到達範囲未確認 | TLS必須・証明書検証、不要アクセス経路を制限 | 設定単体＋隔離DB ssl状態確認 | 利用プランによるネットワーク制限差 |
-| SEC-21 個人情報のログ・ブラウザー保存 | P0 | 一部実装 | src/lib / features / mockとの分離 | 本体の顧客データをlocalStorage保存しない | 認証異常の安全な記録が不足 | 秘密・氏名・Cookie・入力本文を記録しない構造化ログ | 秘匿情報入り例外の非出力テスト | フレームワーク／基盤ログの権限・保存期間 |
-| SEC-22 自動バックアップと復元検証 | P0 | 確認待ち | Neon restore / pg_dump / pg_restore | 契約の復元窓・バックアップ未確認 | 復元成功の証跡なし | 隔離先へ復元し件数・主要関係・営業通し試験を確認 | 復元訓練、失敗と復元時間の記録 | 同一プロジェクト障害・保持期間 |
+| SEC-19 DBユーザー最小権限 | P0 | 確認待ち | Neon roles / PostgreSQL GRANT | hosted認証前に高権限・schema CREATE・監査／台帳UPDATE/DELETEを拒否 | 既存の開発接続はDB所有・Role作成・監査更新が可能。本番へ流用不可 | アプリ非owner、DDL禁止、監査追記・台帳改変制限を検証 | 安全／危険権限・キャッシュ失敗の単体成功。実DB権限は読取のみ、本番Role未設定 | 所有者・DB管理者には権限が残る |
+| SEC-20 DB TLS・ネットワーク | P0 | 確認待ち | DATABASE_URL / DIRECT_URL / Neon network settings | remote Prisma v6にsslmode=require＋sslaccept=strictを強制 | Neon手前の証明書付きTLSは確認。ネットワーク制限と本番経路は未確認 | TLS必須・証明書検証、不要アクセス経路を制限 | 設定単体＋Neon TLS1.3証明書検証＋strict Prisma読取成功（書込なし） | 利用プランによるネットワーク制限差 |
+| SEC-21 個人情報のログ・ブラウザー保存 | P0 | 一部実装 | src/lib / features / mockとの分離 | 固定イベント名と時刻だけの安全ロガー、入力・Cookie・URL・生例外を渡さない | Next/Vercel標準ログの秘匿・保管権限・保持期間は未確認 | 秘密・氏名・Cookie・入力本文を記録しない構造化ログ | 秘密を含む入力／例外の非出力単体、コード走査成功 | フレームワーク／基盤ログの権限・保存期間 |
+| SEC-22 自動バックアップと復元検証 | P0 | 確認待ち | Neon restore / pg_dump / pg_restore | 隔離復元テンプレート・照合・RPO/RTO記録手順を作成 | pg_dump/restore等と承認済み復元先がなく、取得・復元未実施 | 隔離先へ復元し件数・主要関係・営業通し試験を確認 | 実DBrollback試験は成功したがバックアップ復元の証跡にはしない | 同一プロジェクト障害・保持期間 |
 | SEC-23 別環境バックアップ・削除対策 | P1 | 確認待ち | バックアップ保管先と暗号化・削除権限 | 外部保管の有無不明 | 単一アカウント消失に弱い可能性 | 暗号化・別権限の保管先と削除／復元を確認 | 保管・期限・鍵喪失・削除試験 | 別保管にも認証と費用が必要 |
 
 ### D. 公開・通信
 
 | ID・対策 | 優先度 | 状態 | 対象コード・設定 | 現在の実装 | 発見した問題 | 完了条件 | テスト方法 | 残存リスク |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| SEC-24 HTTPS・セキュリティヘッダー | P0 | 一部実装 | src/proxy.ts / src/lib/security/headers.ts | nonce CSP、HSTS、フレーム拒否等 | 公開HTTPSでの実応答は未確認 | 本番相当でヘッダー・Cookie・CSRFを確認 | headers.test.ts・production HTTP検証・実HTTPS受入 | CSP style unsafe-inline、実公開設定 |
+| SEC-24 HTTPS・セキュリティヘッダー | P0 | 一部実装 | src/proxy.ts / src/lib/security/headers.ts | nonce CSP、HSTS、DENY、no-storeを本番モードHTTPで確認 | ローカル自己署名HTTPSであり実Vercelの公開証明書検証ではない | 本番相当でヘッダー・Cookie・CSRFを確認 | Chrome/WebKit各15項目成功、390px、JS例外0。実公開HTTPS未確認 | CSP style unsafe-inline、実公開設定 |
 | SEC-25 Vercel Firewall/WAF | P0 | 確認待ち | Vercel Firewall | 設定未確認、今回は変更禁止 | 公開入口のエッジ制限なしの可能性 | 本人が対象パス・遮断と許可を検証 | ログイン／重要POSTの上限と正当利用 | プラン制限・誤遮断・費用 |
-| SEC-26 ログイン・重要APIレート制限 | P0 | 一部実装 | login-rate-limit.ts / Server Actions | ログインとQR発行に制限あり | 他の重要Actionに共有上限がない | 分散インスタンスでも重要操作の上限を超えず、失敗時は更新しない | 並行要求・期限復帰・DB障害・同一鍵の回帰 | DB到達前の大量要求はWAFが必要 |
-| SEC-27 preview・モックの公開制限 | P0 | 確認待ち | Vercel Deployment Protection / mock/ | モックWeb公開はユーザー指示で見送り | preview保護・本番同居防止の確認不足 | 公開を再開せず、preview認証とデモ非配信を確認 | 設定記録・ビルド公開物の検査 | URL秘匿はアクセス制限ではない |
-| SEC-28 不要な管理ページ・データ公開防止 | P0 | 一部実装 | protected layout / member/link / customer link | 管理ページで毎回Staff照合 | 未完成顧客入口の本番遮断が必要 | 匿名・不正Role・対象外機能を遮断しデータが返らない | Action／page境界・匿名HTTP試験 | 新しい公開入口の追加漏れ |
+| SEC-26 ログイン・重要APIレート制限 | P0 | 検証済み | login-rate-limit.ts / Server Actions | 保護28Actionと活動更新にDB共有60操作/60秒。失敗時は業務処理へ進まない | ログイン以外の共有上限不足を修正。DB到達前の制御はWAF待ち | 分散インスタンスでも重要操作の上限を超えず、失敗時は更新しない | 単体と実PostgreSQLの別接続10並行→上限3で成功3・監査3を確認 | DB到達前の大量要求はWAFが必要 |
+| SEC-27 preview・モックの公開制限 | P0 | 確認待ち | Vercel Deployment Protection / mock/ | モック公開は見送り継続。製品HTTPでmock/docs/env/gitを404確認 | Vercel preview自体への認証保護・別名URLは未確認 | 公開を再開せず、preview認証とデモ非配信を確認 | 本番モードの非配信確認成功。外部Deployment Protection未設定・未検証 | URL秘匿はアクセス制限ではない |
+| SEC-28 不要な管理ページ・データ公開防止 | P0 | 検証済み | protected layout / member/link / customer link | 管理ページでStaff再照合、顧客の全入口を本番／previewで遮断 | 旧承認フラグで顧客入口を開ける問題を修正 | 匿名・不正Role・対象外機能を遮断しデータが返らない | 匿名GET/偽Cookie/直接Action/対象外URLの拒否成功 | 新しい公開入口の追加漏れ |
 | SEC-29 利用量・料金アラート | P1 | 確認待ち | Vercel・Neon通知／上限設定 | 実契約・アラート未確認 | 負荷による費用・停止の検知が不明 | 予算・通知先・上限時の動作を本人確認 | テスト通知・閾値確認 | 有料化操作は承認が必要 |
 
 ### E. 監視・復旧
 
 | ID・対策 | 優先度 | 状態 | 対象コード・設定 | 現在の実装 | 発見した問題 | 完了条件 | テスト方法 | 残存リスク |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| SEC-30 失敗・権限・重要操作の記録 | P0 | 一部実装 | audit-log.ts / login/actions.ts / current-staff.ts | 業務監査はトランザクション内で記録 | ログイン失敗・認証例外の記録不足 | 認証失敗・拒否・例外を秘密なしで記録 | ログの分類・秘匿・例外時の単体 | 外部ログの保存期間・通知は未設定 |
+| SEC-30 失敗・権限・重要操作の記録 | P0 | 検証済み | audit-log.ts / login/actions.ts / current-staff.ts | 認証失敗・権限拒否・例外を秘密なしで分類、重要操作とlogoutを原子的監査 | 認証時の安全な記録を補完。監査ATTEMPTは業務成功とは別 | 認証失敗・拒否・例外を秘密なしで記録 | ロガー秘匿・権限単体、実DBlogout/営業/台帳監査とrollback成功 | 外部ログの保存期間・通知は未設定 |
 | SEC-31 異常操作通知 | P1 | 未実装 | 通知先・監視設定 | 通知経路なし | 失敗ログを見るだけになる | 閾値と宛先、テスト通知と重複抑制 | 模擬異常イベントの通知受入 | 通知先不在・通知遅延 |
-| SEC-32 停止・例外の監視 | P0 | 一部実装 | Next instrumentation / Vercel Observability | 基盤の標準ログのみ | 安全な例外分類と監視設定が不足 | 重大例外の記録・停止検知・通知の受入 | 隔離例外・監視通知・ログ秘匿 | フレームワークの標準ログも要点検 |
-| SEC-33 監査ログの改ざん対策 | P0 | 一部実装 | AuditLog / PostgreSQL role | アプリは追記型、DB権限は不明 | DBownerは更新削除できる | 非ownerアプリの監査更新削除拒否・別保管 | 隔離RoleでUPDATE/DELETE拒否試験 | DB管理者による変更は別監査が必要 |
-| SEC-34 定期依存脆弱性検査 | P1 | 未実装 | .github/workflows / package scripts | 手動security:checkのみ | 継続検査のworkflowなし | 最小権限のPR・定期監査で全依存を確認 | workflow・ローカル同等コマンド | GitHub設定と通知受入 |
+| SEC-32 停止・例外の監視 | P0 | 一部実装 | Next instrumentation / Vercel Observability | instrumentation onRequestErrorで固定イベントを記録、管理error画面を一般化 | 外部停止検知・通知先・標準ログ設定は未確認 | 重大例外の記録・停止検知・通知の受入 | 秘密非出力単体、ビルド成功。外部通知受入は未実施 | フレームワークの標準ログも要点検 |
+| SEC-33 監査ログの改ざん対策 | P0 | 一部実装 | AuditLog / PostgreSQL role | アプリ追記型。hosted認証前に監査／台帳改変権限を検出・拒否 | 開発Roleは監査変更可能。本番非owner設定と別保管は未確認 | 非ownerアプリの監査更新削除拒否・別保管 | 過大権限拒否単体成功。本番相当RoleでUPDATE/DELETE拒否試験は未実施 | DB管理者による変更は別監査が必要 |
+| SEC-34 定期依存脆弱性検査 | P1 | 一部実装 | .github/workflows / package scripts | 最小権限・固定SHAのPR/push/週次/manual CIを作成 | 未pushにつきGitHub上の実行・通知は未確認 | 最小権限のPR・定期監査で全依存を確認 | YAML読取・permissions read・10stepsを確認。ローカル同等検証成功 | GitHub設定と通知受入 |
 | SEC-35 main保護・デプロイ制御 | P0 | 確認待ち | GitHub branch protection / Vercel Git | 開発ブランチとmainが分離 | 保護設定・自動本番デプロイの状態不明 | 本人が必須チェック・レビュー・デプロイ権限を確認 | 保護ルールの閲覧記録、許可外push拒否 | 一人運用での保護解除権限 |
-| SEC-36 障害復旧・切り戻し | P0 | 未実装 | 運用手順 / Vercel deployment / DB | 個別の説明のみ | コードとDBを分けた復旧手順が不足 | 停止判断・旧版・DB互換性・検証・再開を文書化して訓練 | 隔離先の復元と旧版動作、チェックリスト | DB変更を伴う切戻し・復元時のデータ損失 |
-| SEC-37 侵入・漏えい対応 | P0 | 未実装 | インシデント対応手順 | 連絡・隔離・鍵失効の手順なし | 慌ててログや証拠を消す恐れ | 停止・証拠保全・失効・影響調査・連絡・再開を整理 | 机上訓練と連絡先の本人確認 | 法的通知要否は専門確認が必要 |
+| SEC-36 障害復旧・切り戻し | P0 | 一部実装 | 運用手順 / Vercel deployment / DB | 公開停止・安全版・DB互換性・別復元先・再開条件のrunbookを作成 | 復元・切戻し訓練と安全な既存デプロイ対象は未確認 | 停止判断・旧版・DB互換性・検証・再開を文書化して訓練 | 手順をレビュー。外部切戻し／隔離復元の実行は未実施 | DB変更を伴う切戻し・復元時のデータ損失 |
+| SEC-37 侵入・漏えい対応 | P0 | 一部実装 | インシデント対応手順 | 停止・証拠保全・鍵失効・影響調査・連絡・再開のrunbookを作成 | 連絡先・運用責任者・机上訓練は未確認 | 停止・証拠保全・失効・影響調査・連絡・再開を整理 | 文書確認のみ。事故対応訓練は未実施 | 法的通知要否は専門確認が必要 |
 
 ### F. 顧客・ポイント
 
 | ID・対策 | 優先度 | 状態 | 対象コード・設定 | 現在の実装 | 発見した問題 | 完了条件 | テスト方法 | 残存リスク |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| SEC-38 使い捨てQR・不正紐付け防止 | P1 | 一部実装 | src/features/customer-auth/pairing-service.ts | 5分・一回・双方確認・ハッシュ・発行制限 | 顧客認証未完成、先行本番は対象外 | 開発検証を維持し、先行本番の全入口を拒否 | 既存pairing試験＋production遮断 | 採用前の本人確認・復旧条件 |
+| SEC-38 使い捨てQR・不正紐付け防止 | P1 | 一部実装 | src/features/customer-auth/pairing-service.ts | 5分・一回・双方確認・ハッシュ・発行制限。先行hostedは全入口遮断 | 顧客認証自体が未完成で先行対象外 | 開発検証を維持し、先行本番の全入口を拒否 | 既存pairing単体＋production/preview全入口拒否成功 | 採用前の本人確認・復旧条件 |
 | SEC-39 顧客パスキーと復旧 | P2 | 未実装 | CUSTOMER_AUTH_PLAN.md / 未コミット依存 | ライブラリ導入準備差分のみ | 認証・復旧の実装未完了 | 別工程で登録・認証・紛失復旧を検証するまで本番非公開 | 計画T01〜T22、先行では遮断試験 | 開発中依存を完成機能と誤認しない |
 | SEC-40 顧客マイページ本人認証 | P2 | 未実装 | CUSTOMER_AUTH_PLAN.md / 公開ルート | 本人用マイページの製品画面なし | 本人認証・顧客セッション未実装 | 安全な顧客認証後だけ本人データを返す | 匿名・他人ID・失効・機種変更 | 先行対象外、公開しない |
 | SEC-41 LINEポイント二重移行・二重利用 | P2 | 未実装 | P03/P04 / CUSTOMER_AUTH_PLAN.md | 移行と交換は未実装 | 識別と停止手順・重複移行確認が未決定 | 別工程で移行元を一意管理し二重利用を拒否 | 再送・別Customerへの移行・競合 | 先行対象外、LINE停止しない |
-| SEC-42 ポイント利用・訂正権限 | P0 | 一部実装 | point-ledger-service.ts / points/actions.ts | 手動調整・取消はOWNER/MANAGER、サービス内でも再認証 | 特典交換は未実装 | STAFF偽装・他店舗・退職・古い版を拒否し監査を残す | point-ledger.test.ts・Action境界・競合 | 自動付与・交換は先行対象外 |
-| SEC-43 ポイント・成績整合性 | P0 | 一部実装 | point-ledger-service.ts / game-service.ts / ranking-queries.ts | 追記型取消、CONFIRMEDのみ集計、期待残高とrequestKey | 実DBでの今回の競合検証未確認 | 再送・訂正・並行操作で残高と本数が二重にならない | 既存単体・隔離DB同時要求 | 自動ポイントは未実装で連動しない |
+| SEC-42 ポイント利用・訂正権限 | P0 | 一部実装 | point-ledger-service.ts / points/actions.ts | 調整・取消はOWNER/MANAGER、サービス内でも所属・有効・role再照合 | 特典交換自体は未実装。先行対象外として維持 | STAFF偽装・他店舗・退職・古い版を拒否し監査を残す | STAFF偽装・別店舗・台帳の再送／取消／監査を単体と実DBで確認 | 自動付与・交換は先行対象外 |
+| SEC-43 ポイント・成績整合性 | P0 | 一部実装 | point-ledger-service.ts / game-service.ts / ranking-queries.ts | 追記型取消・CONFIRMED集計・期待残高・requestKey、実DB再送拒否を確認 | 独立接続による半荘／ポイント同時更新の受入は未確認 | 再送・訂正・並行操作で残高と本数が二重にならない | 実DB営業日／台帳4件の内2件で整合・再送・失敗rollback成功。自動付与は未実装 | 自動ポイントは未実装で連動しない |
 | SEC-44 個人情報保存・削除・漏えい対応 | P1 | 一部実装 | README削除方針 / customer-service / 運用手順 | 顧客は無効化、重要記録は追記保持 | 保存期限・本人照会・削除と成績の整合手順未確定 | 最小項目・期限・権限・対応責任と手順を決定 | 無効化後の非公開・保持内容の確認 | 法令判断・保存要件は運用確認 |
 | SEC-45 公開ランキング同意・非公開 | P1 | 一部実装 | PublicProfile / customer-service.ts / ranking-queries.ts | 初期公開OFF、同意条件、公開DTOの基盤のみ | 一般公開ランキング自体は未実装 | 公開前に明示同意のみを返し撤回後に除外 | 同意・撤回・非公開・無効顧客のDTO回帰 | 先行の店内ランキングと一般公開を混同しない |
 
 監査の証跡・個別依存調査・手動確認・リリース判定は[セキュリティ監査](SECURITY_AUDIT_20261116.md)へ記録する。復元が成功していないバックアップは完了扱いにしない。
 
 - セキュリティ改修1：SEC-04/05/12/15/21/28/30/32のコード側を強化。承認済みセッション方針、全端末失効、Origin欠落拒否、未完成顧客機能の本番遮断、秘匿したイベント記録。DBなし275件・型・ESLint成功。外部設定と実環境受入が残る項目は一括完了にしない。
+
+### 2026-11-16 最終監査結果
+
+45項目：検証済み11／一部実装18／未実装5／確認待ち11。検証済みは記載のコード・開発検証範囲であり、本番利用の承認ではない。**現時点No-Go。管理者MFAが実装・検証されるまで本番公開しない。**
+
+- DBなし317件、許可済みの非本番・架空fixture実DB4件、型・lint・標準Turbopack本番用ビルド成功。Chrome/WebKitの本番モードHTTP各15項目、活動UI計8ケース成功。MFA未完了のVercel本番フラグでは起動exit 1。
+- 全依存auditは中7→0、本番依存0。700glob比較差0。既存の未コミットWebAuthn準備は保存し、セキュリティ修正とは別にする。
+- 新規CIはローカル作成のみ、GitHub未実行。外部設定・push・本番公開・migration・seed・既存顧客変更なし。開発用に作った専用fixtureだけをrollback／限定削除した。
+- 残る優先順：SEC-01管理者MFA → SEC-07/16/18/19/20/25/27/29/35の本人設定確認 → SEC-22隔離復元 → 別接続の半荘／台帳競合・実iPhone/Androidの1営業日受入 → 本番公開の別途判断。
+- 詳細・変更ファイル・検証限界は[監査報告](SECURITY_AUDIT_20261116.md)、手動設定・復元・切戻しは[公開・復旧手順](SECURITY_RELEASE_RUNBOOK.md)。未完了を一括で完了にしない。

@@ -1,4 +1,5 @@
 "use server";
+import { requireStaffActionPermit } from "@/lib/auth/staff-action-permit";
 
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
@@ -32,6 +33,7 @@ export async function changeTableMembersAction(_previous: TableActionState, form
   });
   if (!parsed.success) return { message: parsed.error.issues[0]?.message ?? "座席と交代するお客さんを確認してください。" };
   if (!prisma) return { message: "データベースへ接続できません。" };
+  await requireStaffActionPermit(staff);
   try { await changeTableMembers(prisma, parsed.data, { storeId: staff.storeId, staffId: staff.id }); }
   catch (error) {
     if (error instanceof TableMembersChangedError) return { message: "別の操作で席・半荘番号が変わりました。画面を更新して確認してください。" };
@@ -49,6 +51,7 @@ export async function createTableAction(_previous: TableActionState, formData: F
   const parsed = createTableSchema.safeParse({ name: formData.get("name"), sortOrder: Number(formData.get("sortOrder") ?? 0) });
   if (!parsed.success) return { message: parsed.error.issues[0]?.message ?? "入力を確認してください。" };
   if (!prisma) return { message: "データベースへ接続できません。" };
+  await requireStaffActionPermit(staff);
   try { await createTable(prisma, parsed.data, { storeId: staff.storeId, staffId: staff.id }); }
   catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") return { message: "同じ名前の卓がすでにあります。" };
@@ -63,6 +66,7 @@ export async function updateTableAction(_previous: TableActionState, formData: F
   const parsed = updateTableSchema.safeParse({ tableId: formData.get("tableId"), name: formData.get("name"), sortOrder: Number(formData.get("sortOrder")) });
   if (!parsed.success) return { message: parsed.error.issues[0]?.message ?? "入力を確認してください。" };
   if (!prisma) return { message: "データベースへ接続できません。" };
+  await requireStaffActionPermit(staff);
   try {
     const updated = await updateTable(prisma, parsed.data, { storeId: staff.storeId, staffId: staff.id });
     if (!updated) return { message: "卓が見つかりません。" };
@@ -79,6 +83,7 @@ export async function deactivateTableAction(_previous: TableActionState, formDat
   const parsed = deactivateTableSchema.safeParse({ tableId: formData.get("tableId") });
   if (!parsed.success) return { message: "卓が見つかりません。" };
   if (!prisma) return { message: "データベースへ接続できません。" };
+  await requireStaffActionPermit(staff);
   try {
     const deactivated = await deactivateTable(prisma, parsed.data.tableId, { storeId: staff.storeId, staffId: staff.id });
     if (!deactivated) return { message: "有効な卓が見つかりません。" };
@@ -98,6 +103,7 @@ export async function startTableSessionAction(_previous: TableActionState, formD
   });
   if (!parsed.success) return { message: "異なる来店中顧客を4人選択してください。席番号は1〜4を指定します。" };
   if (!prisma) return { message: "データベースへ接続できません。" };
+  await requireStaffActionPermit(staff);
   try { await startTableSession(prisma, parsed.data.tableId, parsed.data.seats, { storeId: staff.storeId, staffId: staff.id }); }
   catch (error) {
     if (error instanceof BusinessDayClosedError || error instanceof BusinessDayNotFoundError) return { message: "先に「営業開始・終了」画面から営業を開始してください。" };
@@ -120,6 +126,7 @@ export async function endTableSessionAction(_previous: TableActionState, formDat
   const parsed = endTableSessionSchema.safeParse({ sessionId: formData.get("sessionId") });
   if (!parsed.success) return { message: "稼働中の卓を確認できません。" };
   if (!prisma) return { message: "データベースへ接続できません。" };
+  await requireStaffActionPermit(staff);
   try { await endTableSession(prisma, parsed.data.sessionId, { storeId: staff.storeId, staffId: staff.id }); }
   catch (error) {
     if (error instanceof TableSessionNotFoundError) return { message: "稼働中の卓が見つかりません。" };

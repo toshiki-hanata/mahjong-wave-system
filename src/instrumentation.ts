@@ -1,3 +1,4 @@
+import { assertPilotReleaseReady } from "@/lib/security/release-readiness";
 import type { Instrumentation } from "next";
 import { logSecurityEvent } from "@/lib/security/security-log";
 
@@ -5,3 +6,7 @@ import { logSecurityEvent } from "@/lib/security/security-log";
 export const onRequestError: Instrumentation.onRequestError = () => {
   logSecurityEvent("REQUEST_ERROR", "error");
 };
+
+export function register() {
+  assertPilotReleaseReady();
+}

@@ -4,6 +4,7 @@ const boundary = vi.hoisted(() => ({ requireStaff: vi.fn(), preview: vi.fn(), da
 vi.mock("@/lib/auth/current-staff", () => ({ requireStaff: boundary.requireStaff }));
 vi.mock("@/lib/prisma", () => ({ prisma: boundary.database }));
 vi.mock("@/features/customers/roster-reconciliation-service", () => ({ previewRoster: boundary.preview }));
+vi.mock("@/lib/auth/staff-action-permit", () => ({ requireStaffActionPermit: vi.fn(async () => undefined) }));
 import { previewRosterAction } from "./actions";
 
 beforeEach(() => {
