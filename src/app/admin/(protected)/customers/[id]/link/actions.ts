@@ -26,6 +26,7 @@ export async function issuePairingAction(customerId: string, _previous: StaffLin
 }
 export async function confirmStaffPairingAction(customerId: string, _previous: StaffLinkState, form: FormData): Promise<StaffLinkState> {
   const actor = await requireStaff(), pairingId = form.get("pairingId");
+  if (!getCustomerAuthConfig()) return { message: "スマホ連携は準備中です。" };
   if (!prisma || typeof pairingId !== "string" || form.get("confirmed") !== "on") return { message: "お客さんの画面と確認番号を照合してからチェックしてください。" };
   try { await confirmStaffPairing(prisma, pairingId, customerId, { storeId: actor.storeId, staffId: actor.id }); } catch (error) { return fail(error); }
   revalidatePath(`/admin/customers/${customerId}/link`);
@@ -33,6 +34,7 @@ export async function confirmStaffPairingAction(customerId: string, _previous: S
 }
 export async function cancelPairingAction(customerId: string, _previous: StaffLinkState, form: FormData): Promise<StaffLinkState> {
   const actor = await requireStaff(), pairingId = form.get("pairingId");
+  if (!getCustomerAuthConfig()) return { message: "スマホ連携は準備中です。" };
   if (!prisma || typeof pairingId !== "string") return { message: "連携情報を確認できません。" };
   try { await cancelCustomerPairing(prisma, pairingId, customerId, { storeId: actor.storeId, staffId: actor.id }); } catch (error) { return fail(error); }
   revalidatePath(`/admin/customers/${customerId}/link`);

@@ -6,6 +6,8 @@ import { prisma } from "@/lib/prisma";
 import { readAdminSession } from "./session";
 import { isSessionVersionCurrent, parseAdminSession } from "./session-data";
 import { hasAnyRole } from "./authorization";
+import { isStaffSessionFresh } from "./session-policy";
+import { logSecurityEvent } from "@/lib/security/security-log";
 
 export type CurrentStaff = {
   id: string;
@@ -14,6 +16,9 @@ export type CurrentStaff = {
   storeName: string;
   storeTimezone: string;
   role: Role;
+  sessionVersion: number;
+  sessionIssuedAt: number;
+  sessionLastActiveAt: number;
 };
 
 export async function getCurrentStaff(): Promise<CurrentStaff | null> {
@@ -25,8 +30,10 @@ export async function getCurrentStaff(): Promise<CurrentStaff | null> {
     storeId: session.storeId,
     role: session.role,
     sessionVersion: session.sessionVersion,
+    issuedAt: session.issuedAt,
+    lastActiveAt: session.lastActiveAt,
   });
-  if (!parsed.success || !prisma) return null;
+  if (!parsed.success || !isStaffSessionFresh(parsed.data) || !prisma) { logSecurityEvent("SESSION_REJECTED"); return null; }
 
   const staff = await prisma.staff.findFirst({
     where: { id: parsed.data.staffId, storeId: parsed.data.storeId },
@@ -42,7 +49,7 @@ export async function getCurrentStaff(): Promise<CurrentStaff | null> {
   });
 
   if (!staff || !staff.isActive || !staff.store.isActive || staff.role !== parsed.data.role || !isSessionVersionCurrent(parsed.data.sessionVersion, staff.sessionVersion)) return null;
-  return { id: staff.id, storeId: staff.storeId, name: staff.name, storeName: staff.store.name, storeTimezone: staff.store.timezone, role: staff.role };
+  return { id: staff.id, storeId: staff.storeId, name: staff.name, storeName: staff.store.name, storeTimezone: staff.store.timezone, role: staff.role, sessionVersion: staff.sessionVersion, sessionIssuedAt: parsed.data.issuedAt, sessionLastActiveAt: parsed.data.lastActiveAt };
 }
 
 export async function requireStaff(): Promise<CurrentStaff> {
@@ -53,6 +60,6 @@ export async function requireStaff(): Promise<CurrentStaff> {
 
 export async function requireRole(allowedRoles: readonly Role[]): Promise<CurrentStaff> {
   const staff = await requireStaff();
-  if (!hasAnyRole(staff.role, allowedRoles)) redirect("/admin?error=forbidden");
+  if (!hasAnyRole(staff.role, allowedRoles)) { logSecurityEvent("AUTHORIZATION_DENIED"); redirect("/admin?error=forbidden"); }
   return staff;
 }

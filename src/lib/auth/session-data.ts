@@ -6,6 +6,8 @@ export type AdminSessionData = {
   storeId?: string;
   role?: Role;
   sessionVersion?: number;
+  issuedAt?: number;
+  lastActiveAt?: number;
 };
 
 const sessionSchema = z.object({
@@ -13,6 +15,8 @@ const sessionSchema = z.object({
   storeId: z.string().min(1),
   role: z.enum(["OWNER", "MANAGER", "STAFF"]),
   sessionVersion: z.number().int().nonnegative(),
+  issuedAt: z.number().int().positive().safe(),
+  lastActiveAt: z.number().int().positive().safe(),
 });
 
 export function parseAdminSession(value: AdminSessionData) {

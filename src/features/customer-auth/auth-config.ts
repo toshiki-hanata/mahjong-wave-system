@@ -1,4 +1,5 @@
 import "server-only";
+import { customerDevelopmentFeaturesAllowed } from "@/lib/security/pilot-release";
 
 export type CustomerAuthConfig = Readonly<{
   origin: string; rpId: string; rpName: string; secureCookies: boolean;
@@ -20,6 +21,7 @@ function positiveInteger(value: string | undefined, fallback: number, minimum: n
 
 /** Development defaults are provisional. Production requires explicit approval AND exact HTTPS origin/RP configuration. */
 export function getCustomerAuthConfig(env: Readonly<Record<string, string | undefined>> = process.env): CustomerAuthConfig | null {
+  if (!customerDevelopmentFeaturesAllowed(env)) return null;
   const production = env.NODE_ENV === "production" || env.VERCEL_ENV === "production";
   if (env.CUSTOMER_AUTH_ENABLED === "false") return null;
   if (production && (env.CUSTOMER_AUTH_ENABLED !== "true" || env.CUSTOMER_AUTH_PRODUCTION_APPROVED !== "true")) return null;

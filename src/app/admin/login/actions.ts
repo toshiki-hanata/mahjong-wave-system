@@ -1,5 +1,6 @@
 "use server";
 
+import { logSecurityEvent } from "@/lib/security/security-log";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { authenticateStaff } from "@/lib/auth/credentials";
@@ -35,7 +36,7 @@ export async function loginAction(_previous: LoginFormState, formData: FormData)
       ? requestHeaders.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown"
       : "unknown";
     const reservation = await reserveLoginAttempt(database, parsed.data.loginId, clientAddress, process.env.SESSION_SECRET!);
-    if (!reservation.allowed) return { message: "ログインIDまたはパスワードを確認してください。" };
+    if (!reservation.allowed) { logSecurityEvent("LOGIN_THROTTLED"); return { message: "ログインIDまたはパスワードを確認してください。" }; }
     const staff = await authenticateStaff(parsed.data.loginId, parsed.data.password, {
       findByLoginId: async (loginId) => database.staff.findUnique({
         where: { loginId },
@@ -43,11 +44,13 @@ export async function loginAction(_previous: LoginFormState, formData: FormData)
       }),
     });
     if (reservation.delayMs > 0) await new Promise((resolve) => setTimeout(resolve, reservation.delayMs));
-    if (!staff) return { message: "ログインIDまたはパスワードを確認してください。" };
+    if (!staff) { logSecurityEvent("LOGIN_FAILED"); return { message: "ログインIDまたはパスワードを確認してください。" }; }
 
     await completeSuccessfulLogin(database, reservation);
     await writeAdminSession({ staffId: staff.id, storeId: staff.storeId, role: staff.role, sessionVersion: staff.sessionVersion });
+    logSecurityEvent("LOGIN_SUCCESS", "info");
   } catch {
+    logSecurityEvent("LOGIN_ERROR", "error");
     return { message: "ログインできませんでした。設定と接続状態を確認してください。" };
   }
 

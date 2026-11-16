@@ -10,11 +10,10 @@ describe("Customer authentication deployment guard", () => {
     { NODE_ENV: "production", CUSTOMER_AUTH_PRODUCTION_APPROVED: "true" }, { NODE_ENV: "production", CUSTOMER_AUTH_ENABLED: "true" },
     { NODE_ENV: "development", CUSTOMER_AUTH_ENABLED: "false" },
   ])("keeps production or disabled customer authentication closed %#", (env) => { expect(getCustomerAuthConfig(env)).toBeNull(); });
-  it("requires explicit HTTPS configuration even after both production flags are set", () => {
+  it("keeps the unfinished production pilot closed even with the former approval flags", () => {
     const base = { NODE_ENV: "production", CUSTOMER_AUTH_ENABLED: "true", CUSTOMER_AUTH_PRODUCTION_APPROVED: "true" };
-    expect(() => getCustomerAuthConfig(base)).toThrow(CustomerAuthConfigurationError);
-    expect(() => getCustomerAuthConfig({ ...base, CUSTOMER_AUTH_ORIGIN: "http://localhost:3000", CUSTOMER_AUTH_RP_ID: "localhost" })).toThrow(CustomerAuthConfigurationError);
-    expect(getCustomerAuthConfig({ ...base, CUSTOMER_AUTH_ORIGIN: "https://members.example.com", CUSTOMER_AUTH_RP_ID: "members.example.com" })?.secureCookies).toBe(true);
+    expect(getCustomerAuthConfig(base)).toBeNull();
+    expect(getCustomerAuthConfig({ ...base, CUSTOMER_AUTH_ORIGIN: "https://members.example.com", CUSTOMER_AUTH_RP_ID: "members.example.com" })).toBeNull();
   });
   it.each([
     ["http://192.168.1.10:3000", "192.168.1.10"], ["https://192.168.1.10", "192.168.1.10"],

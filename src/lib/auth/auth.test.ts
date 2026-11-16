@@ -54,7 +54,7 @@ describe("staff authentication primitives", () => {
   });
 
   it("accepts a complete session context and rejects incomplete or unknown roles", () => {
-    expect(parseAdminSession({ staffId: "staff-1", storeId: "store-1", role: Role.OWNER, sessionVersion: 0 }).success).toBe(true);
+    expect(parseAdminSession({ staffId: "staff-1", storeId: "store-1", role: Role.OWNER, sessionVersion: 0, issuedAt: Date.now(), lastActiveAt: Date.now() }).success).toBe(true);
     expect(parseAdminSession({ staffId: "staff-1", storeId: "", role: Role.OWNER }).success).toBe(false);
     expect(parseAdminSession({ staffId: "staff-1", storeId: "store-1", role: "SUPERUSER" as never }).success).toBe(false);
   });

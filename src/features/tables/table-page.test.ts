@@ -14,7 +14,7 @@ vi.mock("./table-actions", () => ({ CreateTableForm: () => null, DeactivateTable
 vi.mock("./member-change-form", () => ({ MemberChangeForm: () => null }));
 
 type PageData = Awaited<ReturnType<typeof getTablePageData>>;
-const staff = { id: "fixture-staff", storeId: "fixture-store", name: "架空スタッフ", storeName: "架空店舗", storeTimezone: "Asia/Tokyo", role: Role.STAFF };
+const staff = { id: "fixture-staff", storeId: "fixture-store", name: "架空スタッフ", storeName: "架空店舗", storeTimezone: "Asia/Tokyo", role: Role.STAFF, sessionVersion: 0, sessionIssuedAt: Date.now(), sessionLastActiveAt: Date.now() };
 function table(index: number, free = false, active = true): PageData["tables"][number] {
   return { id: `fixture-table-${index}`, name: `検証卓${index}`, sortOrder: index, isActive: active, sessions: free ? [{ id: `fixture-session-${index}`, startedAt: new Date("2026-11-16T03:00:00Z"), _count: { games: 1 }, seats: [] }] : [] };
 }
