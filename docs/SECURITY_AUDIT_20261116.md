@@ -72,3 +72,21 @@ Route Handlerは0、Server Actionsは33。ログイン・ログアウト・顧�
 - ログイン失敗・制限・成功・例外、認証拒否とリクエスト例外を固定イベント名で記録。本文・パスワード・氏名・Cookie・URL・例外オブジェクトはこのロガーへ渡さない。Next/Vercel標準ログの保管権限や秘匿を確認したことにはならない。
 
 検証：DB不要テスト35ファイル275件成功、型・全体ESLint成功。発行時刻・期限境界、Cookie属性、無効Staff/Store・Role変更・失効版、ログアウト再送・監査失敗ロールバック、Origin注入、本番全連携入口、ログ秘匿を含む。実HTTP・実DB・実機の受入は別途記録する。スキーマ・既存DBデータ・外部設定は変更していない。
+
+## 依存7件の個別調査・修正
+
+| パッケージ（初期版） | 原因・経路 | 本番／開発での利用 | 対応 |
+| --- | --- | --- | --- |
+| @typescript-eslint/eslint-plugin 8.71.0 | estree配下のminimatchから波及 | dev依存。Next本番依存には含まれない | ラッパー版は維持し原因依存を限定更新 |
+| @typescript-eslint/parser 8.71.0 | estree配下のminimatchから波及 | dev依存。Next本番依存には含まれない | ラッパー版は維持し原因依存を限定更新 |
+| @typescript-eslint/type-utils 8.71.0 | estree配下のminimatchから波及 | dev依存。Next本番依存には含まれない | ラッパー版は維持し原因依存を限定更新 |
+| @typescript-eslint/typescript-estree 8.71.0 | estree配下のminimatchから波及 | dev依存。Next本番依存には含まれない | ラッパー版は維持し原因依存を限定更新 |
+| @typescript-eslint/utils 8.71.0 | estree配下のminimatchから波及 | dev依存。Next本番依存には含まれない | ラッパー版は維持し原因依存を限定更新 |
+| typescript-eslint 8.71.0 | estree配下のminimatchから波及 | dev依存。Next本番依存には含まれない | ラッパー版は維持し原因依存を限定更新 |
+| minimatch 10.2.6 | GHSA-g3hv-75wg-m249 / CVE-2026-118764 | estreeのprojectService allowDefaultProjectパターン比較。現行ESLintにprojectService指定なし。開発・CIの入力や将来設定で影響し得る | estree配下だけ11.0.1へoverride |
+
+[公式アドバイザリー](https://github.com/advisories/GHSA-g3hv-75wg-m249)：最適化glob展開によるCPU/メモリー枯渇。修正版11.0.1。[公式リリース](https://github.com/isaacs/minimatch/releases/tag/v11.0.1)。npm registryの修正版enginesは18/20/>=22で、今回Node 24で検証。現行estree最新版8.72.2もminimatch ^10.2.2のため、通常の互換更新だけでは解消しない。
+
+変更はestree配下のminimatchと追加依存@isaacs/nonrecursive-glob-match。npmが既存Tailwind WASI用の任意依存4件のlock情報も補完したが、既存パッケージの版を一括更新していない。未コミットのSimpleWebAuthn依存は作業ツリーに維持し、コミットには含めない。npm audit fix --forceは使用しない。
+
+隔離したクリーン依存で700件のglob比較に挙動差0、275単体・型・ESLint・標準Turbopack本番ビルド成功。監査は修正前 全依存7／本番0、修正後 全依存0／本番0。Node/OS差や将来の依存元変更は残存リスク。overrideの削除は依存元の正式修正と再検証後に行う。ESLint 9のサポート終了警告は継続保守項目として残す。

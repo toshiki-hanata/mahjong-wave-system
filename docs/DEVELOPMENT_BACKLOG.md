@@ -185,7 +185,7 @@
 | SEC-11 SQLi・XSS・入力値 | P0 | 一部実装 | src/features/** / schemas.ts / src/lib/security/headers.ts | Zod、Reactエスケープ、PrismaパラメーターSQL | 全境界の再検証とサイズ制限の確認が必要 | 危険SQL・生HTMLなし、異常入力と境界値を拒否 | 既存入力試験＋注入文字・巨大入力 | 将来の生HTML・SQL導入 |
 | SEC-12 CSRF・重要操作 | P0 | 一部実装 | src/proxy.ts / next.config.mjs | Next標準Origin比較、SameSite、確認フォーム | NextはOrigin欠落を許容する | Origin欠落・null・別Originの更新を拒否、同一Originは正常 | Origin単体・実HTTP POST・Action拒否 | XSSはCSRF保護を迂回し得る |
 | SEC-13 二重更新防止 | P0 | 一部実装 | business-day-service.ts / game-service.ts / point-ledger-service.ts | 行ロック・一意制約・requestKey・追記型訂正 | 実DB同時操作の今回受入未確認 | 営業・受付・半荘・ポイントの再送と競合を検証 | 既存単体＋許可済み隔離DB並行試験 | 実DB・多端末でのロック挙動 |
-| SEC-14 Next.js・依存の脆弱性 | P0 | 一部実装 | package.json / package-lock.json | 全依存7 moderate、本番依存0（今回初期監査） | minimatch 10.2.6由来、dev利用でも入力によるDoS | 最小更新で監査・型・lint・テスト・ビルドを成功 | 全auditとomit=dev、互換性試験 | 未知の脆弱性・依存元の更新 |
+| SEC-14 Next.js・依存の脆弱性 | P0 | 検証済み | package.json / package-lock.json | estree配下minimatch 11.0.1へ限定override | 初期moderate7件は全依存・本番依存とも0へ | 限定更新・回帰・監査成功（今回の範囲） | 700パターン比較、275単体・型・lint・標準本番ビルド | 将来の脆弱性・override互換性・ESLint旧版保守 |
 | SEC-15 開発専用機能の本番無効化 | P0 | 一部実装 | auth-config.ts / pairing-cookie.ts / member/link / scripts | 顧客認証は本番承認フラグ、テストはDBマーカー保護 | 承認フラグで未完成機能を開ける | 先行本番は連携の全入口を拒否、テスト・モックを配信しない | production＋preview＋開発の境界試験、ビルド検査 | 外部公開設定は別途確認 |
 
 ### C. DB・秘密情報
