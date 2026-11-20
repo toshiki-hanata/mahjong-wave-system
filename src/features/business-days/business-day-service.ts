@@ -1,4 +1,5 @@
 import "server-only";
+import { applicationSqlTable } from "@/lib/security/sql-namespace";
 
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { recordAuditLog } from "@/lib/audit-log";
@@ -22,7 +23,7 @@ export function businessDayLabel(now: Date, timezone: string): string {
 /** All attendance/session/game mutations take this store lock first, before row locks. */
 export async function lockBusinessStore(tx: Prisma.TransactionClient, storeId: string) {
   const stores = await tx.$queryRaw<Array<{ id: string; timezone: string; freeGamePriceYen: number }>>`
-    SELECT "id", "timezone", "freeGamePriceYen" FROM "Store"
+    SELECT "id", "timezone", "freeGamePriceYen" FROM ${applicationSqlTable("Store")}
     WHERE "id" = ${storeId} AND "isActive" = true FOR UPDATE
   `;
   if (!stores[0]) throw new BusinessDayNotFoundError();

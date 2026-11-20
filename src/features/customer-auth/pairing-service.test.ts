@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { PrismaClient } from "@prisma/client";
+import { Prisma, type PrismaClient } from "@prisma/client";
 import { createAuthToken, hashAuthToken, isAuthToken } from "./auth-tokens";
 import { issueCustomerPairing, claimCustomerPairing, confirmCustomerPairing, confirmStaffPairing, cancelCustomerPairing, CustomerLinkError, CustomerLinkRateError } from "./pairing-service";
 
@@ -9,7 +9,7 @@ function fixture() {
   const state = { rows: [] as Row[], active: true, activated: false, audits: [] as unknown[] };
   const context = { storeId: "store-a", staffId: "staff-a" };
   const tx = {
-    $queryRaw: vi.fn(async (sql: TemplateStringsArray, ...values: unknown[]) => sql.join("").includes('FROM "Store"') ? values[0] === "store-a" ? [{ id: "store-a" }] : [] : state.rows.filter((row) => row.id === values[0] && row.storeId === values[1])),
+    $queryRaw: vi.fn(async (strings: TemplateStringsArray, ...raw: unknown[]) => { const query = Prisma.sql(strings, ...raw), values = query.values, sql = query.sql.replace(/"[A-Za-z_][A-Za-z0-9_]*"\./g, ""); return sql.includes('FROM "Store"') ? values[0] === "store-a" ? [{ id: "store-a" }] : [] : state.rows.filter((row) => row.id === values[0] && row.storeId === values[1]); }),
     staff: { findFirst: vi.fn(async ({ where }: { where: { id: string; storeId: string } }) => state.active && where.id === "staff-a" && where.storeId === "store-a" ? { id: "staff-a" } : null) },
     customer: { findFirst: vi.fn(async ({ where }: { where: { id: string; storeId: string } }) => where.id === "customer-a" && where.storeId === "store-a" ? { id: "customer-a", authIdentity: state.activated ? { activatedAt: new Date() } : null } : null) },
     customerAuthIdentity: { upsert: vi.fn(async () => ({ id: "identity-a" })) },

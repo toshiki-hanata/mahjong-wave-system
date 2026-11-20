@@ -75,6 +75,7 @@ export function Sidebar({ storeName, staffName, role, canManageStaff }: { storeN
         <p className="nav-label nav-label-spaced">ANALYTICS</p>
         {canManageRules && <a className={`nav-item${pathname.startsWith("/admin/store-rules") ? " active" : ""}`} href="/admin/store-rules" onClick={() => setOpen(false)}><span className="nav-icon">⚙</span>半荘ルール</a>}
         {canManageStaff && <a className={`nav-item${pathname.startsWith("/admin/staff-sessions") ? " active" : ""}`} href="/admin/staff-sessions" onClick={() => setOpen(false)}><span className="nav-icon">♙</span>スタッフセッション管理</a>}
+        {canManageStaff && <a className={`nav-item${pathname === "/admin/security/mfa" ? " active" : ""}`} href="/admin/security/mfa" onClick={() => setOpen(false)}><span className="nav-icon">⚿</span>自分の追加認証</a>}
         <a className="nav-item" href="/admin/business-days" onClick={() => setOpen(false)}><span className="nav-icon">▥</span>売上・本数</a>
         <a className={`nav-item${pathname === "/admin/rankings" ? " active" : ""}`} href="/admin/rankings" onClick={() => setOpen(false)}><span className="nav-icon">♜</span>ランキング</a>
         {canManageRules && <a className={`nav-item${pathname.startsWith("/admin/rankings/settings") ? " active" : ""}`} href="/admin/rankings/settings" onClick={() => setOpen(false)}><span className="nav-icon">⚙</span>ランキング規定打数</a>}

@@ -1,13 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
-import type { PrismaClient } from "@prisma/client";
+import { Prisma, type PrismaClient } from "@prisma/client";
 import { adjustPoints, reversePointAdjustment, pointAdjustmentSchema, PointBalanceError, PointConflictError, PointCustomerUnavailableError, PointPermissionError } from "./point-ledger-service";
 
 function fixture() {
   type Entry = { id: string; kind: string; customerId: string; actorStaffId: string; delta: number; balanceAfter: number; sequenceNumber: number; requestKey: string; reason: string; reversesEntryId: string | null };
   const state = { role: "MANAGER", active: true, customerActive: true, staffCustomer: false, entries: [] as Entry[], audits: [] as unknown[] };
   const tx = {
-    $queryRaw: vi.fn(async (sql: TemplateStringsArray) => sql.join("").includes('FROM "Store"') ? [{ id: "store-a" }] : state.customerActive && !state.staffCustomer ? [{ id: "customer-a" }] : []),
+    $queryRaw: vi.fn(async (strings: TemplateStringsArray, ...raw: unknown[]) => Prisma.sql(strings, ...raw).sql.replace(/"[A-Za-z_][A-Za-z0-9_]*"\./g, "").includes('FROM "Store"') ? [{ id: "store-a" }] : state.customerActive && !state.staffCustomer ? [{ id: "customer-a" }] : []),
     staff: { findFirst: vi.fn(async () => state.active ? { role: state.role } : null) },
     pointLedgerEntry: {
       findFirst: vi.fn(async ({ where }: { where: { requestKey?: string; id?: string; kind?: string; customerId?: string } }) => {

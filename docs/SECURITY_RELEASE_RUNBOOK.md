@@ -1,6 +1,8 @@
 # フリー営業先行利用：公開・復旧手順
 
-作成日：2026-11-16。目標日：2026-11-20（金）。この文書の外部操作は未実施。勝手に本番へ適用しない。
+作成日：2026-11-16。更新：2026-11-20。目標日：2026-11-20（金）。この文書の外部操作は未実施。勝手に本番へ適用しない。
+
+管理者MFAの実装・開発検証と初回登録手順は[STAFF_MFA.md](STAFF_MFA.md)。実管理者の登録・実機受入は未完了のため、以下の公開停止を維持する。
 
 ## Go／No-Go条件
 
@@ -23,6 +25,7 @@
 | --- | --- | --- |
 | DATABASE_URL | 専用本番のpooled URL。非ownerのapp Role | 本番と異なるendpoint |
 | DIRECT_URL | 必要な場合、同じDB・同じ最小権限app Roleのdirect URL | 対応する非本番DB |
+| STAFF_MFA_ENCRYPTION_KEY | 環境固有の32byte乱数をbase64で保管。Git・ログに出さず、DBバックアップと別に保護。上書きローテーション禁止 | 本番と異なる鍵。開発セットアップで未設定時だけ生成 |
 | SESSION_SECRET | 32byte以上の暗号学的乱数を安全に生成・保管。環境間で共有しない | 本番とは別の乱数 |
 | APP_ORIGIN | https://から始まる正規Origin。末尾/・path・queryなし | 公開previewも厳密なHTTPS Origin。ローカルは空で可 |
 | DATABASE_ENVIRONMENT | production | preview/test/development |
@@ -42,6 +45,7 @@ Prisma v6のremote接続ではコードがsslmode=requireとsslaccept=strictを�
 - AuditLogはSELECT/INSERTのみで、UPDATE/DELETEを許可しない。
 - PointLedgerEntryはSELECT/INSERTのみで、UPDATE/DELETEを許可しない。残高用表は台帳サービスに必要な更新を許可する。
 - セッション失効に必要なStaff.sessionVersion更新を許可する。不要なRole・パスワード列の更新を広く付与しない。
+- StaffMfaはアプリにSELECT/UPDATEのみ、INSERT/DELETEを禁止する。初回プロファイル発行は別権限の私用端末CLI。StaffMfaChallengeは短命の認証状態としてSELECT/INSERT/UPDATE/DELETEが必要。既存のTOTP seed・登録コード・復旧コードをSQLやログで出さない。
 - schemaのCREATEを許可しない。テーブル所有者・migration Roleと分ける。所有権の移転は検証済み手順だけで行う。
 - 実Roleで通常営業を確認し、その同じRoleによる監査・台帳UPDATE/DELETEが拒否されることを隔離DBで確認する。
 
@@ -90,7 +94,7 @@ pg_restore --dbname=service=wave-restore-isolated --exit-on-error --no-owner --n
 
 ## 不正侵入・漏えい疑い
 
-本人が公開停止・アカウント停止を判断し、時刻と影響範囲を記録。ログと監査をアクセス制限して保全し、先に削除しない。疑われる資格情報の範囲を確認し、該当Staffの全端末失効、SESSION_SECRET・DB資格情報・サービスTokenのローテーションを承認された管理環境で実施する。新旧両方の認証手段の扱いを確認し、攻撃経路と影響を調べて再開を判断する。本人通知・行政報告等の要否・期限は公式窓口で確認し、その判断を記録する。この監査では法的要件の適合を認定していない。
+本人が公開停止・アカウント停止を判断し、時刻と影響範囲を記録。ログと監査をアクセス制限して保全し、先に削除しない。疑われる資格情報の範囲を確認し、該当Staffの全端末失効、SESSION_SECRET・STAFF_MFA_ENCRYPTION_KEY（単純な上書きでは復旧できない）・DB資格情報・サービスTokenのローテーションを承認された管理環境で実施する。新旧両方の認証手段の扱いを確認し、攻撃経路と影響を調べて再開を判断する。本人通知・行政報告等の要否・期限は公式窓口で確認し、その判断を記録する。この監査では法的要件の適合を認定していない。
 
 ## 11月20日までの確認順
 

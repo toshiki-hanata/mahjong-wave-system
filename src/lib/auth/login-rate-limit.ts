@@ -1,4 +1,5 @@
 import "server-only";
+import { applicationSqlTable } from "@/lib/security/sql-namespace";
 
 import { createHmac } from "node:crypto";
 import { Prisma, type PrismaClient } from "@prisma/client";
@@ -58,9 +59,9 @@ export async function reserveLoginAttempt(
   const result = await database.$transaction(async (tx) => {
     // Keep the operational table bounded without touching business history.
     await tx.$executeRaw`
-      DELETE FROM "LoginAttemptBucket"
+      DELETE FROM ${applicationSqlTable("LoginAttemptBucket")}
       WHERE "id" IN (
-        SELECT "id" FROM "LoginAttemptBucket"
+        SELECT "id" FROM ${applicationSqlTable("LoginAttemptBucket")}
         WHERE "windowStartedAt" < ${staleBefore}
         ORDER BY "windowStartedAt"
         LIMIT 100
@@ -72,7 +73,7 @@ export async function reserveLoginAttempt(
     });
     const rows = await tx.$queryRaw<Array<{ bucketKey: string; dimension: "IP" | "LOGIN_ID"; failureCount: number; windowStartedAt: Date }>>`
       SELECT "bucketKey", "dimension", "failureCount", "windowStartedAt"
-      FROM "LoginAttemptBucket"
+      FROM ${applicationSqlTable("LoginAttemptBucket")}
       WHERE "bucketKey" IN (${Prisma.join(keys.map(({ bucketKey }) => bucketKey))})
       ORDER BY "bucketKey"
       FOR UPDATE`;

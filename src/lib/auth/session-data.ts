@@ -8,6 +8,8 @@ export type AdminSessionData = {
   sessionVersion?: number;
   issuedAt?: number;
   lastActiveAt?: number;
+  mfaVerifiedAt?: number;
+  mfaVersion?: number;
 };
 
 const sessionSchema = z.object({
@@ -17,6 +19,8 @@ const sessionSchema = z.object({
   sessionVersion: z.number().int().nonnegative(),
   issuedAt: z.number().int().positive().safe(),
   lastActiveAt: z.number().int().positive().safe(),
+  mfaVerifiedAt: z.number().int().positive().safe().optional(),
+  mfaVersion: z.number().int().nonnegative().safe().optional(),
 });
 
 export function parseAdminSession(value: AdminSessionData) {

@@ -14,6 +14,13 @@ enum Role {
   STAFF
 }
 
+enum StaffMfaChallengeKind {
+  ENROLL
+  VERIFY
+  REPLACE
+  ACKNOWLEDGE
+}
+
 enum LoginRateLimitDimension {
   IP
   LOGIN_ID
@@ -130,6 +137,7 @@ model Staff {
   businessDaysClosed BusinessDay[] @relation("BusinessDayClosedBy")
   participantProfile Customer? @relation("StaffParticipantProfile")
   pointLedgerEntries PointLedgerEntry[]
+  mfa StaffMfa?
   pairingsIssued CustomerPairing[] @relation("PairingIssuedBy")
   pairingsConfirmed CustomerPairing[] @relation("PairingConfirmedBy")
 
@@ -636,4 +644,45 @@ model PricingPlan {
   store Store @relation(fields: [storeId], references: [id], onDelete: Restrict)
 
   @@index([storeId, isActive, validFrom, validUntil])
+}
+
+// Secrets are AES-GCM encrypted with a separate server key; recovery codes are random hashes only.
+model StaffMfa {
+  staffId String @id
+  storeId String
+  secretCiphertext String?
+  enabledAt DateTime? @db.Timestamptz(3)
+  version Int @default(0)
+  lastAcceptedStep Int?
+  recoveryCodeHashes String[] @default([]) @db.VarChar(64)
+  enrollmentTokenHash String? @db.VarChar(64)
+  enrollmentExpiresAt DateTime? @db.Timestamptz(3)
+  failedAttempts Int @default(0)
+  failureWindowStartedAt DateTime @default(now()) @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  staff Staff @relation(fields: [storeId, staffId], references: [storeId, id], onDelete: Restrict)
+  challenges StaffMfaChallenge[]
+  @@unique([storeId, staffId])
+}
+
+model StaffMfaChallenge {
+  id String @id @default(uuid())
+  storeId String
+  staffId String
+  tokenHash String @unique @db.VarChar(64)
+  kind StaffMfaChallengeKind
+  role Role
+  sessionVersion Int
+  mfaVersion Int
+  secretCiphertext String?
+  recoveryCiphertext String?
+  verifiedAt DateTime? @db.Timestamptz(3)
+  ipBucketKey String? @db.VarChar(64)
+  loginBucketKey String? @db.VarChar(64)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  expiresAt DateTime @db.Timestamptz(3)
+  consumedAt DateTime? @db.Timestamptz(3)
+  profile StaffMfa @relation(fields: [storeId, staffId], references: [storeId, staffId], onDelete: Restrict)
+  @@index([storeId, staffId, expiresAt])
 }

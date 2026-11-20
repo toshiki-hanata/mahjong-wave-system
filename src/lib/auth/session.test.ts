@@ -28,6 +28,11 @@ describe("iron-session integration", () => {
     expect(save).toHaveBeenCalledOnce();
   });
 
+  it("never issues an administrator session after the password step alone", async () => {
+    await expect(writeAdminSession({ staffId: "staff-1", storeId: "store-1", role: "OWNER", sessionVersion: 7 })).rejects.toThrow("追加認証");
+    expect(save).not.toHaveBeenCalled();
+  });
+
   it("logout destroys only the current session cookie", async () => {
     await destroyAdminSession();
     expect(destroy).toHaveBeenCalledOnce();

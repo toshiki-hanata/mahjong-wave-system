@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
-import type { PrismaClient } from "@prisma/client";
+import { Prisma, type PrismaClient } from "@prisma/client";
 import { checkInStaffParticipant, StaffParticipantUnavailableError, StaffParticipationConflictError } from "./staff-participation-service";
 import { BusinessDayClosedError } from "@/features/business-days/business-day-service";
 import { checkInVisit, VisitCustomerUnavailableError } from "@/features/visits/visit-service";
@@ -19,7 +19,7 @@ function fixture() {
   };
   const tx = {
     $queryRaw: vi.fn(async (strings: TemplateStringsArray, ...raw: unknown[]) => {
-      const sql = strings.join(""), values = flatten(raw);
+      const query = Prisma.sql(strings, ...raw), sql = query.sql.replace(/"[A-Za-z_][A-Za-z0-9_]*"\./g, ""), values = flatten(query.values);
       if (sql.includes('FROM "Store"')) return values[0] === context.storeId ? [{ id: context.storeId, timezone: "Asia/Tokyo", freeGamePriceYen: 2500 }] : [];
       if (sql.includes('FROM "Staff"')) return state.staff.filter((staff) => staff.storeId === values[0] && values.includes(staff.id));
       if (sql.includes('FROM "Customer"')) return state.profiles.filter((profile) => profile.id === values[0] && profile.storeId === values[1] && profile.isActive);

@@ -1,4 +1,5 @@
 import "server-only";
+import { hasMfaProof, requiresStaffMfa } from "./mfa/policy";
 import { assertRuntimeDatabaseRole } from "@/lib/security/database-role";
 
 import { redirect } from "next/navigation";
@@ -33,6 +34,8 @@ export async function getCurrentStaff(): Promise<CurrentStaff | null> {
     sessionVersion: session.sessionVersion,
     issuedAt: session.issuedAt,
     lastActiveAt: session.lastActiveAt,
+    mfaVerifiedAt: session.mfaVerifiedAt,
+    mfaVersion: session.mfaVersion,
   });
   if (!parsed.success || !isStaffSessionFresh(parsed.data) || !prisma) { logSecurityEvent("SESSION_REJECTED"); return null; }
 
@@ -51,6 +54,10 @@ export async function getCurrentStaff(): Promise<CurrentStaff | null> {
   });
 
   if (!staff || !staff.isActive || !staff.store.isActive || staff.role !== parsed.data.role || !isSessionVersionCurrent(parsed.data.sessionVersion, staff.sessionVersion)) return null;
+  if (requiresStaffMfa(staff.role)) {
+    const profile = await prisma.staffMfa.findFirst({ where: { staffId: staff.id, storeId: staff.storeId }, select: { enabledAt: true, secretCiphertext: true, version: true } });
+    if (!hasMfaProof(parsed.data, profile)) { logSecurityEvent("SESSION_REJECTED"); return null; }
+  }
   return { id: staff.id, storeId: staff.storeId, name: staff.name, storeName: staff.store.name, storeTimezone: staff.store.timezone, role: staff.role, sessionVersion: staff.sessionVersion, sessionIssuedAt: parsed.data.issuedAt, sessionLastActiveAt: parsed.data.lastActiveAt };
 }
 

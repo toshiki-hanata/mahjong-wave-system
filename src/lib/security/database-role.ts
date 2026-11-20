@@ -1,4 +1,5 @@
 import "server-only";
+import { applicationDatabaseSchema, qualifiedSqlTableName } from "./sql-namespace";
 import type { PrismaClient } from "@prisma/client";
 import { productionDatabaseChecksRequired } from "./database-config";
 
@@ -13,11 +14,13 @@ export async function assertRuntimeDatabaseRole(database: Pick<PrismaClient, "$q
     const rows = await database.$queryRaw<Array<{ unsafe: boolean }>>`
       SELECT (r.rolsuper OR r.rolcreatedb OR r.rolcreaterole OR r.rolbypassrls OR r.oid = d.datdba
         OR EXISTS (SELECT 1 FROM pg_roles elevated WHERE (elevated.rolsuper OR elevated.rolcreatedb OR elevated.rolcreaterole OR elevated.rolbypassrls OR elevated.oid = d.datdba) AND pg_has_role(current_user, elevated.oid, 'MEMBER'))
-        OR has_schema_privilege(current_user, current_schema(), 'CREATE')
-        OR has_table_privilege(current_user, '"AuditLog"', 'UPDATE')
-        OR has_table_privilege(current_user, '"AuditLog"', 'DELETE')
-        OR has_table_privilege(current_user, '"PointLedgerEntry"', 'UPDATE')
-        OR has_table_privilege(current_user, '"PointLedgerEntry"', 'DELETE')) AS unsafe
+        OR has_schema_privilege(current_user, ${applicationDatabaseSchema(env)}, 'CREATE')
+        OR has_table_privilege(current_user, ${qualifiedSqlTableName("AuditLog", env)}, 'UPDATE')
+        OR has_table_privilege(current_user, ${qualifiedSqlTableName("AuditLog", env)}, 'DELETE')
+        OR has_table_privilege(current_user, ${qualifiedSqlTableName("PointLedgerEntry", env)}, 'UPDATE')
+        OR has_table_privilege(current_user, ${qualifiedSqlTableName("PointLedgerEntry", env)}, 'DELETE')
+        OR has_table_privilege(current_user, ${qualifiedSqlTableName("StaffMfa", env)}, 'INSERT')
+        OR has_table_privilege(current_user, ${qualifiedSqlTableName("StaffMfa", env)}, 'DELETE')) AS unsafe
       FROM pg_roles r JOIN pg_database d ON d.datname = current_database()
       WHERE r.rolname = current_user`;
     if (rows.length !== 1 || rows[0].unsafe !== false) throw new Error("本番用DB権限の確認が必要です。");

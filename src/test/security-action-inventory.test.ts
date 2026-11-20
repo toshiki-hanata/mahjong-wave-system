@@ -10,12 +10,15 @@ const protectedActions: Record<string, string[]> = {
   customers: ["createCustomerAction", "updateCustomerAction", "deactivateCustomerAction"],
   "customers/reconcile": ["previewRosterAction"],
   games: ["createStoreRuleAction", "createGameAction", "correctGameAction"],
+  "security/mfa": ["replaceStaffMfaAction"],
   rankings: ["updateRankingSettingsAction"], "staff-games": ["checkInStaffParticipantAction"],
   "staff-sessions": ["revokeStaffSessionsAction"],
   tables: ["changeTableMembersAction", "createTableAction", "updateTableAction", "deactivateTableAction", "startTableSessionAction", "endTableSessionAction"],
   visits: ["quickReceptionAction", "checkInVisitAction", "checkOutVisitAction"],
 };
 const approved = new Set(Object.entries(protectedActions).flatMap(([dir, names]) => names.map(n => `src/app/admin/(protected)/${dir}/actions.ts:${n}`)).concat([
+  "src/app/admin/mfa/actions.ts:verifyMfaAction", "src/app/admin/mfa/actions.ts:recoverMfaAction",
+  "src/app/admin/mfa/actions.ts:acknowledgeMfaAction", "src/app/admin/mfa/actions.ts:cancelMfaAction",
   "src/app/admin/actions.ts:logoutAction", "src/app/admin/login/actions.ts:loginAction",
   "src/app/admin/session-actions.ts:refreshStaffSessionAction", "src/app/member/link/actions.ts:claimPairingAction",
   "src/app/member/link/actions.ts:readPairingAction", "src/app/member/link/actions.ts:confirmPairingAction",

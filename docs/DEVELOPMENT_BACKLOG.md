@@ -167,7 +167,7 @@
 
 | ID・対策 | 優先度 | 状態 | 対象コード・設定 | 現在の実装 | 発見した問題 | 完了条件 | テスト方法 | 残存リスク |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| SEC-01 OWNER・MANAGERのMFA | P0 | 未実装 | src/lib/auth/credentials.ts / Vercel保護設定 | MFA未実装。Vercel productionはconfigとinstrumentationで停止 | ユーザー承認：管理者MFAの実装・検証完了まで本番公開禁止 | 管理者MFA・秘密保護・再利用拒否・復旧を実装検証するまで本番公開しない | 本番フラグでローカル起動exit 1を確認。MFA自体の試験は未実施 | 管理アカウント侵害 |
+| SEC-01 OWNER・MANAGERのMFA | P0 | 一部実装 | src/lib/auth/mfa/ / admin/mfa / scripts/prepare-staff-mfa.mjs | TOTP・別経路初回コード・暗号化seed・署名付き短命状態・復旧10個・全端末失効を実装 | 実管理者の登録・実機受入と鍵バックアップ未確認。本番公開停止を維持 | 実管理者で初回登録・通常認証・紛失復旧・別端末失効を受入してから公開判断 | DBなし356件・隔離実DB17件・営業rollback1件。Chrome31/WebKit30・型・lint・Next16.4.6 build成功。実機未確認（STAFF_MFA.md） | TOTPはフィッシング耐性MFAではない。鍵喪失・全復旧手段喪失は自動復旧不可 |
 | SEC-02 スタッフのパスワードハッシュ | P0 | 一部実装 | src/lib/auth/password.ts | bcrypt cost 12、72byte上限・未知IDダミー比較をコードとテストで確認 | 既存全アカウントのハッシュ強度・パスワード運用の受入は未確認 | ハッシュ・比較・長さ制限の回帰成功、実アカウントを変更せず方式確認 | auth.test.tsと入力境界が成功。アカウント変更なし | 既存の弱いパスワードは別途点検 |
 | SEC-03 ログイン試行制限 | P0 | 一部実装 | src/lib/auth/login-rate-limit.ts / login/actions.ts | PostgreSQL共有バケット、IP上限・ID遅延・HMAC。単体成功 | 本番エッジのIP・分散ログイン負荷の受入は未確認 | 並行予約で上限超過なし、DB障害時に認証不可 | login-rate-limit.test.ts成功。実Vercel分散ログイン未検証 | 共有IPのロックアウト・負荷 |
 | SEC-04 Cookie保護・ログアウト失効 | P0 | 検証済み | src/lib/auth/session.ts / src/app/admin/actions.ts | 保護Cookie、署名時刻、条件付きsessionVersion増加で全端末失効 | Cookie削除だけの失効を修正。DB失敗時は全端末失効成功と表示しない | 旧CookieのDB検証拒否・全端末失効とCookie削除を検証 | Cookie属性・再送・失敗単体＋実DBの旧版拒否／監査／rollback成功 | DB停止時の失効処理と盗難Cookie |
@@ -179,13 +179,13 @@
 
 | ID・対策 | 優先度 | 状態 | 対象コード・設定 | 現在の実装 | 発見した問題 | 完了条件 | テスト方法 | 残存リスク |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| SEC-08 全APIのサーバー認可 | P0 | 検証済み | src/app/**/actions.ts / current-staff.ts | Route Handler 0、Server Actions 34を一覧固定。保護28＋活動更新に認証・操作permit | 既存の認可試験漏れを補完。追加入口は一覧差分テストで検知 | 全エクスポートを分類し、非公開Actionの未認証・Role偽装を拒否 | 全28保護Actionの匿名拒否・権限偽装・一覧回帰成功。公開入口は別途分類 | 新規Action追加漏れ・本番受入 |
+| SEC-08 全APIのサーバー認可 | P0 | 検証済み | src/app/**/actions.ts / current-staff.ts | Route Handler 0、Server Actions 39を一覧固定。保護29＋活動更新に認証・操作permit | 既存の認可試験漏れを補完。追加入口は一覧差分テストで検知 | 全エクスポートを分類し、非公開Actionの未認証・Role偽装を拒否 | 全29保護Actionの匿名拒否・権限偽装・一覧回帰成功。公開入口は別途分類 | 新規Action追加漏れ・本番受入 |
 | SEC-09 ID・URL変更の情報アクセス防止 | P0 | 検証済み | customer-service.ts / game-queries.ts / point-ledger-service.ts | storeId境界、ID差替の非公開読取拒否、顧客用入口のhosted遮断 | 店舗外IDを指定しても店員の所属店舗条件を維持 | 他店舗ID拒否、匿名顧客は非公開情報を取得不可 | 実Customer詳細page/サービスの匿名・他店舗ID単体、台帳FK実DB成功 | 同店舗スタッフの業務権限は維持 |
-| SEC-10 未認証アクセス調査 | P0 | 検証済み | src/proxy.ts / /admin/login / /member/link | ログインのみ先行公開入口。匿名管理ページredirect、顧客連携404 | 旧フラグで顧客入口が開く問題を修正 | 全公開入口を列挙し先行対象外機能を本番遮断 | 匿名・偽Cookie・未完成入口の本番モードHTTPとAction直接呼出成功 | 公開ログインへの攻撃 |
+| SEC-10 未認証アクセス調査 | P0 | 検証済み | src/proxy.ts / /admin/login / /member/link | ログインとパスワード認証後の署名付き短命MFAが認証入口。匿名管理ページredirect、顧客連携404 | 旧フラグで顧客入口が開く問題を修正 | 全公開入口を列挙し先行対象外機能を本番遮断 | 匿名・偽Cookie・未完成入口の本番モードHTTPとAction直接呼出成功 | 公開ログインへの攻撃 |
 | SEC-11 SQLi・XSS・入力値 | P0 | 一部実装 | src/features/** / schemas.ts / src/lib/security/headers.ts | Zod、Reactエスケープ、パラメーターSQL、nonce CSP。製品に生HTML/unsafe SQLなし | 入力回帰成功。全ての攻撃・将来追加を保証するものではない | 危険SQL・生HTMLなし、異常入力と境界値を拒否 | 既存入力・権限・不正値回帰317件、HTTPでJS例外なし | 将来の生HTML・SQL導入 |
 | SEC-12 CSRF・重要操作 | P0 | 検証済み | src/proxy.ts / next.config.mjs | 全更新HTTPのOrigin欠落/null/別Origin拒否、Actionにも同一Origin検証 | Next標準だけではOrigin欠落を許容するため独自拒否を追加 | Origin欠落・null・別Originの更新を拒否、同一Originは正常 | 単体＋Chrome/WebKitの実POST拒否／同一OriginログインAction成功 | XSSはCSRF保護を迂回し得る |
 | SEC-13 二重更新防止 | P0 | 一部実装 | business-day-service.ts / game-service.ts / point-ledger-service.ts | 行ロック・一意制約・requestKey。営業と台帳の再送・rollbackを実DB確認 | 別接続の半荘・台帳競合は未確認。旧ゲーム並行試験は既存店舗を使うため今回は実行せず、専用Store化が必要 | 営業・受付・半荘・ポイントの再送と競合を検証 | 営業日・台帳実DB成功。別接続10並行の共有quota成功。全業務の実機競合は別 | 実DB・多端末でのロック挙動 |
-| SEC-14 Next.js・依存の脆弱性 | P0 | 検証済み | package.json / package-lock.json | estree配下minimatch 11.0.1へ限定override。全依存・本番依存audit 0 | 初期moderate7件を修正。ESLint9保守警告は後続 | 限定更新・回帰・監査成功（今回の範囲） | 700glob比較差0、317単体・型・lint・標準Turbopack本番用ビルド成功 | 将来の脆弱性・override互換性・ESLint旧版保守 |
+| SEC-14 Next.js・依存の脆弱性 | P0 | 検証済み | package.json / package-lock.json | minimatch限定overrideを維持。Next.js/eslint-config-next 16.4.6、Prisma config配下Effect 3.22.1、otplib 13.6.0 | 11/16の中7件修正後、新規告知のNext/Effect計4依存項目（high3/moderate1）を11/20に修正 | 限定更新・型・lint・回帰・build・全依存と本番依存audit成功 | 11/20のaudit全依存0・本番依存0。更新・検証範囲はSTAFF_MFA.md | 新たな脆弱性・override互換性・ESLint旧版保守 |
 | SEC-15 開発専用機能の本番無効化 | P0 | 検証済み | auth-config.ts / pairing-cookie.ts / member/link / scripts | 全顧客連携をhosted/productionで強制無効化。モック・資料・envは製品配信しない | 承認フラグによる未完成機能の本番公開を防止 | 先行本番は連携の全入口を拒否、テスト・モックを配信しない | production/preview/開発単体と実HTTP404確認。本番フラグの起動拒否成功 | 外部公開設定は別途確認 |
 
 ### C. DB・秘密情報
@@ -251,3 +251,11 @@
 - 新規CIはローカル作成のみ、GitHub未実行。外部設定・push・本番公開・migration・seed・既存顧客変更なし。開発用に作った専用fixtureだけをrollback／限定削除した。
 - 残る優先順：SEC-01管理者MFA → SEC-07/16/18/19/20/25/27/29/35の本人設定確認 → SEC-22隔離復元 → 別接続の半荘／台帳競合・実iPhone/Androidの1営業日受入 → 本番公開の別途判断。
 - 詳細・変更ファイル・検証限界は[監査報告](SECURITY_AUDIT_20261116.md)、手動設定・復元・切戻しは[公開・復旧手順](SECURITY_RELEASE_RUNBOOK.md)。未完了を一括で完了にしない。
+
+
+### 2026-11-20 管理者MFAの進捗
+
+45項目：検証済み11／一部実装19／未実装4／確認待ち11。SEC-01を未実装から一部実装へ更新。コードと開発テストが成功しても、実管理者の登録・実機受入は完了扱いにしない。**本番公開は引き続きNo-Go。**
+
+- 詳細・変更範囲・実行結果・残課題は[管理者MFA](STAFF_MFA.md)。本番環境・main・push・モック公開は変更しない。
+- 次：実管理者の認証アプリ登録と鍵の保護 → 外部アカウントMFA・DB/Role/公開保護の確認 → 隔離バックアップ復元 → 営業の競合・実機受入 → 公開の別途判断。

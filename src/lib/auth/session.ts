@@ -2,6 +2,7 @@ import "server-only";
 
 import { getIronSession, type IronSession, type SessionOptions } from "iron-session";
 import { cookies } from "next/headers";
+import { hasMfaStamp, requiresStaffMfa } from "./mfa/policy";
 import type { AdminSessionData } from "./session-data";
 import { parseAdminSession } from "./session-data";
 import { isStaffSessionFresh, STAFF_SESSION_POLICY } from "./session-policy";
@@ -29,10 +30,11 @@ export async function readAdminSession(): Promise<IronSession<AdminSessionData> 
   return getIronSession<AdminSessionData>(await cookies(), options);
 }
 
-export async function writeAdminSession(data: Required<Pick<AdminSessionData, "staffId" | "storeId" | "role" | "sessionVersion">>): Promise<void> {
+export async function writeAdminSession(data: Required<Pick<AdminSessionData, "staffId" | "storeId" | "role" | "sessionVersion">> & { mfa?: { verifiedAt: number; version: number } }): Promise<void> {
   const options = getSessionOptions();
   if (!options) throw new Error("SESSION_SECRET must be configured with at least 32 characters.");
 
+  if (requiresStaffMfa(data.role) && !hasMfaStamp({ issuedAt: Date.now(), mfaVerifiedAt: data.mfa?.verifiedAt, mfaVersion: data.mfa?.version })) throw new Error("管理者の追加認証が必要です。");
   const session = await getIronSession<AdminSessionData>(await cookies(), options);
   // iron-session v9 forbids saving a session after destroy(); this object is
   // already authenticated and encrypted, so overwrite its known auth fields.
@@ -40,12 +42,15 @@ export async function writeAdminSession(data: Required<Pick<AdminSessionData, "s
   delete session.storeId;
   delete session.role;
   delete session.sessionVersion;
+  delete session.mfaVerifiedAt;
+  delete session.mfaVersion;
   session.staffId = data.staffId;
   session.storeId = data.storeId;
   session.role = data.role;
   session.sessionVersion = data.sessionVersion;
   session.issuedAt = Date.now();
   session.lastActiveAt = session.issuedAt;
+  if (requiresStaffMfa(data.role) && data.mfa) { session.mfaVerifiedAt = data.mfa.verifiedAt; session.mfaVersion = data.mfa.version; }
   await session.save();
 }
 

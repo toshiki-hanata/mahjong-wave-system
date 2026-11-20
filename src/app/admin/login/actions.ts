@@ -6,7 +6,10 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { authenticateStaff } from "@/lib/auth/credentials";
 import { prisma } from "@/lib/prisma";
-import { writeAdminSession } from "@/lib/auth/session";
+import { beginMfaChallenge } from "@/lib/auth/mfa/service";
+import { requiresStaffMfa } from "@/lib/auth/mfa/policy";
+import { clearMfaPendingToken, writeMfaPendingToken } from "@/lib/auth/mfa/pending-cookie";
+import { destroyAdminSession, writeAdminSession } from "@/lib/auth/session";
 import { headers } from "next/headers";
 import { completeSuccessfulLogin, reserveLoginAttempt } from "@/lib/auth/login-rate-limit";
 
@@ -29,6 +32,7 @@ export async function loginAction(_previous: LoginFormState, formData: FormData)
   }
 
   const database = prisma;
+  let pendingMfa = false;
   try {
     await assertRuntimeDatabaseRole(database);
     const requestHeaders = await headers();
@@ -48,13 +52,23 @@ export async function loginAction(_previous: LoginFormState, formData: FormData)
     if (reservation.delayMs > 0) await new Promise((resolve) => setTimeout(resolve, reservation.delayMs));
     if (!staff) { logSecurityEvent("LOGIN_FAILED"); return { message: "ログインIDまたはパスワードを確認してください。" }; }
 
-    await completeSuccessfulLogin(database, reservation);
-    await writeAdminSession({ staffId: staff.id, storeId: staff.storeId, role: staff.role, sessionVersion: staff.sessionVersion });
-    logSecurityEvent("LOGIN_SUCCESS", "info");
+    if (requiresStaffMfa(staff.role)) {
+      const result = await beginMfaChallenge(database, staff, reservation);
+      if (result.status === "SETUP_REQUIRED") return { message: "管理者から初回登録コードを受け取ってください。追加認証の登録準備が必要です。" };
+      if (result.status !== "PENDING") return { message: "追加認証を開始できません。5分ほど待って再度お試しください。" };
+      await destroyAdminSession();
+      await writeMfaPendingToken(result.token);
+      pendingMfa = true;
+    } else {
+      await clearMfaPendingToken();
+      await completeSuccessfulLogin(database, reservation);
+      await writeAdminSession({ staffId: staff.id, storeId: staff.storeId, role: staff.role, sessionVersion: staff.sessionVersion });
+      logSecurityEvent("LOGIN_SUCCESS", "info");
+    }
   } catch {
     logSecurityEvent("LOGIN_ERROR", "error");
     return { message: "ログインできませんでした。設定と接続状態を確認してください。" };
   }
 
-  redirect("/admin");
+  redirect(pendingMfa ? "/admin/mfa" : "/admin");
 }
