@@ -25,7 +25,7 @@ export default async function BusinessDaysPage() {
       <p>{current ? `開始 ${time(current.openedAt, current.timezone)} ／ フリー1本 ${yen(current.freeGamePriceYen)}` : `次の営業のフリー1本 ${yen(data.nextPriceYen)}`}</p>
       {current && current.label !== businessDayLabel(now, current.timezone) && <p className="business-warning" role="status">開始日から日付が変わっています。営業終了の押し忘れがないか確認してください。終了忘れはOWNER／MANAGERが実際の終了日時を指定して処理できます。</p>}
       {!current && <OpenBusinessDayForm key={data.days[0]?.id ?? "first"} requestKey={randomUUID()} blocked={blocked} />}
-      <div className="business-links"><Link className="button button-primary" href="/admin/visits">受付・退店へ</Link><Link className="button button-secondary" href="/admin/tables">卓・対局へ</Link></div>
+      <div className="business-links"><Link className="button button-primary" href="/admin/visits" prefetch={false}>受付・退店へ</Link><Link className="button button-secondary" href="/admin/tables" prefetch={false}>卓・対局へ</Link></div>
     </section>
     {current && <section className="business-metrics" aria-label="今回の営業実績">
       <article className="panel"><span>フリー本数</span><strong>{current.metrics.games}<small>本</small></strong></article>

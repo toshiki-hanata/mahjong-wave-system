@@ -43,7 +43,7 @@ export default async function VisitsPage({ searchParams }: VisitsPageProps) {
         <h1>受付・来店中</h1>
         <p className="visits-subtitle">お客さんを検索して受付。初めての方は、この画面で登録できます。</p>
       </div>
-      <Link className="button button-secondary" href="/admin/tables">卓に配置する →</Link>
+      <Link className="button button-secondary" href="/admin/tables" prefetch={false}>卓に配置する →</Link>
     </header>
 
     {notice === "staff-joined" && <p className="visit-notice" role="status">スタッフを待機に追加しました。卓画面で席を選択できます。</p>}
