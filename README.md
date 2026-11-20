@@ -10,7 +10,8 @@
 - [スマホ基本操作の改善・確認記録](docs/MOBILE_OPERATIONS_QA.md)
 - [11/16セキュリティ監査・検証結果](docs/SECURITY_AUDIT_20261116.md) / [公開・復旧手順](docs/SECURITY_RELEASE_RUNBOOK.md)
 - [管理者MFAの設定・利用・検証](docs/STAFF_MFA.md)
-- [架空データ専用の試運用URL・検証・更新方法](docs/TRIAL_DEPLOYMENT.md)
+- [試運用URL・架空データでの検証・更新方法](docs/TRIAL_DEPLOYMENT.md)
+- [実データによる営業外受入・名簿の本番引継ぎ方針](docs/PREPRODUCTION_ACCEPTANCE_PLAN.md)
 - [継続開発リスト](docs/DEVELOPMENT_BACKLOG.md)
 - [96画面の操作モック](mock/index.html) / [開き方](mock/README.md)
 - [全96画面・操作案内付きPDF](mock/docs/麻雀ウェーブ_全96画面モック_操作案内付き.pdf)
@@ -18,7 +19,7 @@
 **GitHubのmain、ローカルの最新実装、独立モックは進捗が異なります。** 最新一式の共有ブランチは `codex/mobile-reception`、PDFだけの共有ブランチは `codex/mock-screen-pdf` です。モックのWeb公開は2026-11-16の指示で見送りです。詳細は引き継ぎ報告を参照してください。
 
 
-**実営業の本番公開は引き続き未承認です。実管理者の登録・実機受入・隔離復元・外部設定が残り、本体のVercel production停止を維持します。架空データだけの認証付きPreviewは公開済みです。費用の判断は実営業への切替時に行い、今回は無料プランを維持しています。今回の修正は開発ブランチへローカルコミットし、pushしていません。**
+**実営業の本番公開は引き続き未承認です。実管理者の登録・実機受入・隔離復元・外部設定が残り、本体のVercel production停止を維持します。架空データだけの認証付きPreviewは公開済みです。最新の希望は実データでの営業外受入と名簿の本番引継ぎです。その準備と利用条件確認は未完了で、有料化は行っていません。今回の修正は開発ブランチへローカルコミットし、pushしていません。**
 
 継続開発の優先順位・追加仕様・未確定事項は [継続開発リスト](docs/DEVELOPMENT_BACKLOG.md) を参照してください。
 受付の操作手順と検証状況は [スマホ受付の改善](docs/MOBILE_RECEPTION.md) に記載しています。
