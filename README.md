@@ -10,7 +10,7 @@
 - [スマホ基本操作の改善・確認記録](docs/MOBILE_OPERATIONS_QA.md)
 - [11/16セキュリティ監査・検証結果](docs/SECURITY_AUDIT_20261116.md) / [公開・復旧手順](docs/SECURITY_RELEASE_RUNBOOK.md)
 - [管理者MFAの設定・利用・検証](docs/STAFF_MFA.md)
-- [試運用URL・架空データでの検証・更新方法](docs/TRIAL_DEPLOYMENT.md)
+- [試運用URL・架空データでの検証・更新方法](docs/TRIAL_DEPLOYMENT.md)（Vercelアカウント不要、麻雀ウェーブ自身のログインは必要）
 - [実データによる営業外受入・名簿の本番引継ぎ方針](docs/PREPRODUCTION_ACCEPTANCE_PLAN.md)
 - [継続開発リスト](docs/DEVELOPMENT_BACKLOG.md)
 - [96画面の操作モック](mock/index.html) / [開き方](mock/README.md)
