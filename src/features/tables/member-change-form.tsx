@@ -1,6 +1,8 @@
 "use client";
+import { DraftStatus, useUnsavedDraft } from "@/components/forms/draft-guard";
+import { useRetryableActionState } from "@/components/forms/retryable-action";
 import { participantName, participantCode } from "@/features/staff-participation/participant-policy";
-import { useActionState, useState } from "react";
+import { useState } from "react";
 import { changeTableMembersAction, type TableActionState } from "@/app/admin/(protected)/tables/actions";
 
 type Person = { id: string; customer: { internalName: string; participantStaffId?: string | null; customerCode: string } };
@@ -16,8 +18,10 @@ export function MemberChangeForm({ sessionId, requestKey, seatingToken, expected
   const [otherPosition, setOtherPosition] = useState("2");
   const [incoming, setIncoming] = useState("");
   const [confirmed, setConfirmed] = useState(false);
-  const [state, action, pending] = useActionState(changeTableMembersAction, {} as TableActionState);
-  return <form action={action} className="member-change-form">
+  const [state, action, pending] = useRetryableActionState(changeTableMembersAction, {} as TableActionState);
+  const dirty = !state.success && (Boolean(incoming) || confirmed || mode !== "replace" || position !== "1" || otherPosition !== "2");
+  useUnsavedDraft(dirty);
+  return <form action={action} className="member-change-form"><DraftStatus dirty={dirty} pending={pending} />
     <input type="hidden" name="sessionId" value={sessionId} /><input type="hidden" name="requestKey" value={key} /><input type="hidden" name="seatingToken" value={seatingToken} /><input type="hidden" name="expectedSequence" value={expectedSequence} />
     <p>半荘の間に変更してください。前の対局記録は残り、次の半荘から新しい席で入力できます。</p>
     <label>変更内容<select name="mode" value={mode} onChange={(event) => { setMode(event.target.value as "replace" | "swap"); setConfirmed(false); }} disabled={pending}><option value="replace">1人を待機客と交代</option><option value="swap">座席を入れ替える</option></select></label>

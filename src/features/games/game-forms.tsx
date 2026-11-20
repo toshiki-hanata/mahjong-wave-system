@@ -1,6 +1,8 @@
 "use client";
+import { DraftStatus, useUnsavedDraft } from "@/components/forms/draft-guard";
+import { useRetryableActionState } from "@/components/forms/retryable-action";
 import { participantName, participantCode } from "@/features/staff-participation/participant-policy";
-import { useActionState, useMemo, useState, useSyncExternalStore } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import { calculateGame, scoreForDisplay, type GameRule } from "./game-calculation";
 import { createGameAction, correctGameAction, type GameFormState } from "@/app/admin/(protected)/games/actions";
 const subscribe = () => () => {}, ready = () => true, notReady = () => false;
@@ -12,7 +14,10 @@ function ResultsEntry({ sessionId, sequence, idempotencyKey, players, rule, init
   const [inputMode, setInputMode] = useState<"POINTS" | "RANK_ONLY">(correction && initialPoints && Object.values(initialPoints).every(p => p === null) ? "RANK_ONLY" : "POINTS");
   const [points, setPoints] = useState<Record<number, string>>(Object.fromEntries([1, 2, 3, 4].map(p => [p, initialPoints?.[p]?.toString() ?? ""])));
   const [places, setPlaces] = useState<Record<number, string>>(Object.fromEntries([1, 2, 3, 4].map(rank => [rank, String(Object.entries(initialRanks ?? {}).find(([, r]) => r === rank)?.[0] ?? "")])));
-  const [state, action, pending] = useActionState(correction ? correctGameAction : createGameAction, {} as GameFormState);
+  const [state, action, pending] = useRetryableActionState(correction ? correctGameAction : createGameAction, {} as GameFormState);
+  const [initialDraft] = useState(() => JSON.stringify({ points, places, inputMode, reason }));
+  const dirty = JSON.stringify({ points, places, inputMode, reason }) !== initialDraft && (Boolean(correction) || Object.values(points).some(Boolean) || Object.values(places).some(Boolean) || Boolean(reason));
+  useUnsavedDraft(dirty);
   const locked = pending || !hydrated;
   const calculation = useMemo(() => {
     if ([1, 2, 3, 4].some(p => points[p] === "" || !Number.isInteger(Number(points[p])))) return { results: null, error: "4人の持ち点を整数で入力してください。" };
@@ -26,6 +31,7 @@ function ResultsEntry({ sessionId, sequence, idempotencyKey, players, rule, init
     <input type="hidden" name="idempotencyKey" value={requestKey} /><input type="hidden" name="inputMode" value={inputMode} />
     {!correction && <><input type="hidden" name="seatingToken" value={seatingToken} /><input type="hidden" name="expectedSequence" value={sequence} /></>}
     {correction ? <input type="hidden" name="gameId" value={correction.gameId} /> : <input type="hidden" name="tableSessionId" value={sessionId} />}
+    <DraftStatus dirty={dirty} pending={pending} />
     <div className="game-input-mode" role="group" aria-label="半荘結果の入力方法"><button type="button" aria-pressed={inputMode === "POINTS"} disabled={locked} onClick={() => setInputMode("POINTS")}>点数を入力</button><button type="button" aria-pressed={inputMode === "RANK_ONLY"} disabled={locked} onClick={() => setInputMode("RANK_ONLY")}>着順だけ入力</button></div>
     {!hydrated && <p className="game-entry-hint" role="status">入力の準備中です…</p>}
     {inputMode === "POINTS" ? <>

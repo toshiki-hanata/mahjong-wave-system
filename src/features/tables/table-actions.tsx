@@ -1,7 +1,9 @@
 "use client";
+import { DraftStatus, useUnsavedDraft } from "@/components/forms/draft-guard";
+import { useRetryableActionState } from "@/components/forms/retryable-action";
 import { participantName, participantCode } from "@/features/staff-participation/participant-policy";
 
-import { useActionState, useState } from "react";
+import { useState } from "react";
 import type { TableActionState } from "@/app/admin/(protected)/tables/actions";
 import { createTableAction, deactivateTableAction, endTableSessionAction, startTableSessionAction, updateTableAction } from "@/app/admin/(protected)/tables/actions";
 
@@ -16,7 +18,7 @@ function ActionNotice({ state }: { state: TableActionState }) {
 }
 
 export function CreateTableForm() {
-  const [state, action, pending] = useActionState(createTableAction, initial);
+  const [state, action, pending] = useRetryableActionState(createTableAction, initial);
   return <form action={action} className="table-master-create">
     <label>卓名<input name="name" required maxLength={40} placeholder="例: A卓" /></label>
     <label>表示順<input name="sortOrder" type="number" min={0} max={10000} defaultValue={0} /></label>
@@ -26,7 +28,7 @@ export function CreateTableForm() {
 }
 
 export function TableMasterForm({ table }: { table: TableData }) {
-  const [state, action, pending] = useActionState(updateTableAction, initial);
+  const [state, action, pending] = useRetryableActionState(updateTableAction, initial);
   return <form action={action} className="table-master-edit">
     <input type="hidden" name="tableId" value={table.id} />
     <label>卓名<input name="name" required maxLength={40} defaultValue={table.name} /></label>
@@ -37,7 +39,7 @@ export function TableMasterForm({ table }: { table: TableData }) {
 }
 
 export function DeactivateTableForm({ tableId }: { tableId: string }) {
-  const [state, action, pending] = useActionState(deactivateTableAction, initial);
+  const [state, action, pending] = useRetryableActionState(deactivateTableAction, initial);
   return <form action={action} onSubmit={(event) => { if (!window.confirm("この卓を無効化しますか？過去のSession履歴は残ります。")) event.preventDefault(); }}>
     <input type="hidden" name="tableId" value={tableId} />
     <button className="button button-danger" disabled={pending}>{pending ? "処理中…" : "卓を無効化"}</button>
@@ -46,12 +48,14 @@ export function DeactivateTableForm({ tableId }: { tableId: string }) {
 }
 
 export function StartTableForm({ tableId, waitingVisits }: { tableId: string; waitingVisits: WaitingVisit[] }) {
-  const [state, action, pending] = useActionState(startTableSessionAction, initial);
+  const [state, action, pending] = useRetryableActionState(startTableSessionAction, initial);
   const [visitIds, setVisitIds] = useState(["", "", "", ""]);
   const [query, setQuery] = useState("");
+  const dirty = visitIds.some(Boolean) && !state.success;
+  useUnsavedDraft(dirty);
   const complete = visitIds.every((id) => waitingVisits.some((visit) => visit.id === id)) && new Set(visitIds).size === 4;
   const candidates = waitingVisits.filter((visit) => !visitIds.includes(visit.id) && `${participantName(visit.customer)} ${participantCode(visit.customer)}`.toLowerCase().includes(query.trim().toLowerCase()));
-  return <form action={action} className="table-start-form">
+  return <form action={action} className="table-start-form"><DraftStatus dirty={dirty} pending={pending} />
     <input type="hidden" name="tableId" value={tableId} />
     <p className="table-help">待機中のお客さん・スタッフをタップすると、座席1から順に入ります。変更する場合は選択した名前を外してください。</p>
     <div className="table-selected-seats">{[1, 2, 3, 4].map((position) => {
@@ -68,7 +72,7 @@ export function StartTableForm({ tableId, waitingVisits }: { tableId: string; wa
 }
 
 export function EndTableForm({ sessionId }: { sessionId: string }) {
-  const [state, action, pending] = useActionState(endTableSessionAction, initial);
+  const [state, action, pending] = useRetryableActionState(endTableSessionAction, initial);
   return <form action={action} onSubmit={(event) => { if (!window.confirm("卓を解放し、4人全員を待機中へ戻しますか？")) event.preventDefault(); }}>
     <input type="hidden" name="sessionId" value={sessionId} />
     <button className="button button-secondary table-end-button" disabled={pending}>{pending ? "解放中…" : "4人を待機へ戻して卓を解放"}</button>

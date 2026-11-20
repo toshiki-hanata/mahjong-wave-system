@@ -81,7 +81,7 @@ export function Sidebar({ storeName, staffName, role, canManageStaff }: { storeN
         {canManageRules && <a className={`nav-item${pathname.startsWith("/admin/rankings/settings") ? " active" : ""}`} href="/admin/rankings/settings" onClick={() => setOpen(false)}><span className="nav-icon">⚙</span>ランキング規定打数</a>}
       </nav>
       <div className="sidebar-bottom"><span className="nav-item is-disabled" role="link" aria-disabled="true"><span className="nav-icon">⚙</span>店舗設定<small className="nav-note">準備中</small></span>
-        <div className="user-card"><span className="user-avatar">{staffName.slice(0, 1)}</span><span><strong>{staffName}</strong><small>{role}</small></span><form action={logoutAction}><button className="more-button" aria-label="ログアウト" title="このアカウントの全端末からログアウト">↪</button></form></div>
+        <div className="user-card"><span className="user-avatar">{staffName.slice(0, 1)}</span><span><strong>{staffName}</strong><small>{role}</small></span><form action={logoutAction} data-confirm-leave><button className="more-button" aria-label="ログアウト" title="このアカウントの全端末からログアウト">↪</button></form></div>
       </div>
     </aside>
   </>;

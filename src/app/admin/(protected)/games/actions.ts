@@ -77,7 +77,7 @@ export async function createGameAction(_previous: GameFormState, formData: FormD
   } catch (error) { return gameFormError(error); }
   revalidatePath("/admin", "layout");
   if (formData.get("afterSave") === "next") redirect(`/admin/tables/${parsed.data.tableSessionId}/games/new?saved=${result.sequenceNumber}`);
-  redirect(`/admin/tables/${parsed.data.tableSessionId}/games/${result.id}`);
+  redirect(`/admin/tables/${parsed.data.tableSessionId}/games/${result.id}?notice=saved`);
 }
 
 export async function correctGameAction(_previous: GameFormState, formData: FormData): Promise<GameFormState> {
@@ -95,5 +95,5 @@ export async function correctGameAction(_previous: GameFormState, formData: Form
     result = await correctGame(prisma, parsed.data, { storeId: staff.storeId, staffId: staff.id });
   } catch (error) { return gameFormError(error); }
   revalidatePath("/admin", "layout");
-  redirect(`/admin/tables/${sessionId}/games/${result.id}`);
+  redirect(`/admin/tables/${sessionId}/games/${result.id}?notice=corrected`);
 }

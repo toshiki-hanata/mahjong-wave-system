@@ -1,7 +1,9 @@
 "use client";
+import { DraftStatus, useUnsavedDraft } from "@/components/forms/draft-guard";
+import { useRetryableActionState } from "@/components/forms/retryable-action";
 
 import Link from "next/link";
-import { useActionState, useState } from "react";
+import { useState } from "react";
 import { quickReceptionAction, type QuickReceptionState } from "@/app/admin/(protected)/visits/actions";
 import { normalizeReceptionName } from "./reception-schemas";
 import { CheckInButton } from "./visit-action-buttons";
@@ -12,9 +14,11 @@ export function QuickReceptionForm({ initialRequestId, initialName }: { initialR
 }
 
 function QuickReceptionEntry({ requestId, initialName, onNext }: { requestId: string; initialName: string; onNext: () => void }) {
-  const [state, action, pending] = useActionState(quickReceptionAction, {} as QuickReceptionState);
+  const [state, action, pending] = useRetryableActionState(quickReceptionAction, {} as QuickReceptionState);
   const [name, setName] = useState(initialName);
   const [confirmed, setConfirmed] = useState(false);
+  const dirty = !state.success && (name !== initialName || confirmed);
+  const hydrated = useUnsavedDraft(dirty);
   const candidates = state.submittedName === normalizeReceptionName(name) ? state.candidates : undefined;
 
   if (state.success) return <div className="quick-reception-success" role="status">
@@ -25,14 +29,15 @@ function QuickReceptionEntry({ requestId, initialName, onNext }: { requestId: st
 
   return <div>
     <form action={action} className="quick-reception-form">
+      <DraftStatus dirty={dirty} pending={pending} />
       <input type="hidden" name="requestId" value={requestId} />
       <label htmlFor="quick-reception-name">新しいお客さんのお名前・呼び名</label>
       <p id="quick-reception-help">紙の名簿にいる方は、先に上の検索で登録済みか確認してください。会員番号は自動で発行し、公開設定はOFFで登録します。</p>
-      <input id="quick-reception-name" name="internalName" required maxLength={120} autoComplete="off" value={name} onChange={(event) => { setName(event.target.value); setConfirmed(false); }} aria-describedby={`quick-reception-help${state.fieldError ? " quick-reception-error" : ""}`} aria-invalid={Boolean(state.fieldError)} />
+      <input id="quick-reception-name" name="internalName" disabled={pending || !hydrated} required maxLength={120} autoComplete="off" value={name} onChange={(event) => { setName(event.target.value); setConfirmed(false); }} aria-describedby={`quick-reception-help${state.fieldError ? " quick-reception-error" : ""}`} aria-invalid={Boolean(state.fieldError)} />
       {state.fieldError && <p id="quick-reception-error" className="visit-action-error" role="alert">{state.fieldError}</p>}
       {state.message && <p className="visit-action-error" role="alert">{state.message}</p>}
       {candidates?.length ? <label className="reception-confirm"><input type="checkbox" name="confirmDifferentPerson" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} />下の登録とは別のお客さんであることを確認しました</label> : null}
-      <button className="button button-primary" type="submit" disabled={pending || !name.trim() || Boolean(candidates?.length && !confirmed)}>{pending ? "登録・受付中…" : "登録して来店受付"}</button>
+      <button className="button button-primary" type="submit" disabled={pending || !hydrated || !name.trim() || Boolean(candidates?.length && !confirmed)}>{pending ? "登録・受付中…" : "登録して来店受付"}</button>
     </form>
     {candidates?.length ? <section className="reception-candidates" aria-label="同じお名前の登録">
       <h3>すでに登録されているお客さん</h3>

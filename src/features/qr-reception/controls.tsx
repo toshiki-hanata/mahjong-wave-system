@@ -1,5 +1,7 @@
 "use client";
-import { useActionState, useEffect, useState, useSyncExternalStore } from "react";
+import { DraftStatus, useUnsavedDraft } from "@/components/forms/draft-guard";
+import { useRetryableActionState } from "@/components/forms/retryable-action";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { submitQrReceptionAction } from "@/app/reception/[storeId]/actions";
 import { approveQrReceptionAction, rejectQrReceptionAction, updateQrReceptionAction } from "@/app/admin/(protected)/reception-qr/actions";
@@ -14,8 +16,9 @@ export function ReceptionRefresh({ waiting = false }: { waiting?: boolean }) {
 }
 export function ReceptionSubmitForm({ storeId, qrKey, token }: { storeId: string; qrKey: string; token: string }) {
   const hydrated = useSyncExternalStore(subscribe, ready, pendingHydration);
-  const [state, action, pending] = useActionState(submitQrReceptionAction.bind(null, storeId, qrKey), {});
+  const [state, action, pending] = useRetryableActionState(submitQrReceptionAction.bind(null, storeId, qrKey), {});
   const [requestToken] = useState(token), [name, setName] = useState("");
+  useUnsavedDraft(Boolean(name) && !state.success);
   return <form action={action} className="qr-reception-form">
     <input type="hidden" name="token" value={requestToken} />
     <label htmlFor="reception-name">お名前・呼び名</label>
@@ -26,17 +29,19 @@ export function ReceptionSubmitForm({ storeId, qrKey, token }: { storeId: string
   </form>;
 }
 export function ReceptionSettingForm({ mode, children }: { mode: "enable" | "disable" | "rotate"; children: React.ReactNode }) {
-  const [state, action, pending] = useActionState(updateQrReceptionAction, {});
+  const [state, action, pending] = useRetryableActionState(updateQrReceptionAction, {});
   return <form action={action}><input type="hidden" name="mode" value={mode} /><button className={`button ${mode === "enable" ? "button-primary" : "button-secondary"}`} disabled={pending}>{pending ? "変更中…" : children}</button>{state.message && <p role="status">{state.message}</p>}</form>;
 }
 type CustomerChoice = { id: string; customerCode: string; internalName: string; isActive: boolean };
 export function ReceptionReviewForm({ requestId, submittedName, choices }: { requestId: string; submittedName: string; choices: CustomerChoice[] }) {
   const hydrated = useSyncExternalStore(subscribe, ready, pendingHydration);
   const [choice, setChoice] = useState(""), [newName, setName] = useState(submittedName);
-  const [state, action, pending] = useActionState(approveQrReceptionAction, {});
+  const [state, action, pending] = useRetryableActionState(approveQrReceptionAction, {});
   const isNew = choice === "new";
+  const dirty = Boolean(choice) || newName !== submittedName;
+  useUnsavedDraft(dirty);
   return <form action={action} className="qr-reception-form">
-    <input type="hidden" name="requestId" value={requestId} /><input type="hidden" name="mode" value={isNew ? "new" : "existing"} />
+    <DraftStatus dirty={dirty} pending={pending} /><input type="hidden" name="requestId" value={requestId} /><input type="hidden" name="mode" value={isNew ? "new" : "existing"} />
     <label htmlFor="reception-customer">受付する会員</label>
     <select id="reception-customer" name="customerId" required value={choice} onChange={e => setChoice(e.target.value)} disabled={pending || !hydrated}>
       <option value="">既存会員か新規登録かを選択</option>
@@ -50,7 +55,7 @@ export function ReceptionReviewForm({ requestId, submittedName, choices }: { req
   </form>;
 }
 export function RejectReceptionForm({ requestId }: { requestId: string }) {
-  const [state, action, pending] = useActionState(rejectQrReceptionAction, {});
+  const [state, action, pending] = useRetryableActionState(rejectQrReceptionAction, {});
   return <form action={action}><input type="hidden" name="requestId" value={requestId} /><button className="button button-secondary" disabled={pending}>{pending ? "処理中…" : "この申請を見送る"}</button>{state.message && <p role="status">{state.message}</p>}</form>;
 }
 export function PrintReceptionQr() { return <button type="button" className="button button-secondary qr-no-print" onClick={() => window.print()}>受付QRを印刷</button>; }
