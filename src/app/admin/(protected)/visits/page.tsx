@@ -12,6 +12,8 @@ import { prisma } from "@/lib/prisma";
 import { visitOperationRoles } from "@/features/visits/visit-permissions";
 import { QuickReceptionForm } from "@/features/visits/quick-reception-form";
 
+import { qrReceptionEnabled } from "@/features/qr-reception/policy";
+
 type VisitsPageProps = { searchParams: Promise<{ q?: string | string[]; notice?: string | string[] }> };
 
 function first(value: string | string[] | undefined): string {
@@ -49,6 +51,8 @@ export default async function VisitsPage({ searchParams }: VisitsPageProps) {
     {notice === "staff-joined" && <p className="visit-notice" role="status">スタッフを待機に追加しました。卓画面で席を選択できます。</p>}
     {notice === "checked-out" && <p className="visit-notice" role="status">チェックアウトしました。</p>}
     {!prisma && <p className="visit-notice" role="status">データベースに接続できません。</p>}
+
+    {qrReceptionEnabled() && <section className="panel qr-reception-entry"><p>お客さんのスマホからの申請を確認して受付できます。</p><Link className="button button-primary" href="/admin/reception-qr" prefetch={false}>店内QR・受付申請へ</Link></section>}
 
     <section className="visit-count-grid" aria-label="現在の来店状況">
       <article className="visit-count-card visit-count-total"><span>来店・参加人数</span><strong>{counts?.total ?? "—"}<small>名</small></strong></article>

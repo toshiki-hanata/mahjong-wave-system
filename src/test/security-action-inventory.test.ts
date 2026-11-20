@@ -15,8 +15,10 @@ const protectedActions: Record<string, string[]> = {
   "staff-sessions": ["revokeStaffSessionsAction"],
   tables: ["changeTableMembersAction", "createTableAction", "updateTableAction", "deactivateTableAction", "startTableSessionAction", "endTableSessionAction"],
   visits: ["quickReceptionAction", "checkInVisitAction", "checkOutVisitAction"],
+  "reception-qr": ["updateQrReceptionAction", "approveQrReceptionAction", "rejectQrReceptionAction"],
 };
 const approved = new Set(Object.entries(protectedActions).flatMap(([dir, names]) => names.map(n => `src/app/admin/(protected)/${dir}/actions.ts:${n}`)).concat([
+  "src/app/reception/[storeId]/actions.ts:submitQrReceptionAction",
   "src/app/admin/mfa/actions.ts:verifyMfaAction", "src/app/admin/mfa/actions.ts:recoverMfaAction",
   "src/app/admin/mfa/actions.ts:acknowledgeMfaAction", "src/app/admin/mfa/actions.ts:cancelMfaAction",
   "src/app/admin/actions.ts:logoutAction", "src/app/admin/login/actions.ts:loginAction",

@@ -32,6 +32,12 @@ enum VisitStatus {
   CHECKED_OUT
 }
 
+enum QrReceptionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 enum TableSessionStatus {
   ACTIVE
   ENDED
@@ -114,6 +120,9 @@ model Store {
   pointLedgerEntries PointLedgerEntry[]
   customerAuthIdentities CustomerAuthIdentity[]
   customerPairings CustomerPairing[]
+  qrReceptionSetting QrReceptionSetting?
+  qrReceptionRequests QrReceptionRequest[]
+
 }
 
 model Staff {
@@ -144,6 +153,8 @@ model Staff {
   @@unique([loginId])
   @@unique([storeId, id])
   @@index([storeId, isActive])
+  qrReceptionReviews QrReceptionRequest[]
+
 }
 
 model LoginAttemptBucket {
@@ -212,6 +223,8 @@ model Customer {
   @@unique([storeId, id])
   @@index([storeId, isActive, internalName])
   @@index([storeId, createdAt])
+  qrReceptionRequests QrReceptionRequest[]
+
 }
 
 model CustomerAuthIdentity {
@@ -306,6 +319,8 @@ model Visit {
   @@index([storeId, customerId, status])
   @@index([storeId, customerId, checkedInAt])
   @@index([storeId, businessDayId])
+  qrReceptionRequests QrReceptionRequest[]
+
 }
 
 model MahjongTable {
@@ -457,6 +472,8 @@ model BusinessDay {
   @@unique([storeId, id])
   @@unique([storeId, requestKey])
   @@index([storeId, openedAt])
+  qrReceptionRequests QrReceptionRequest[]
+
 }
 
 model GamePlayerResult {
@@ -685,4 +702,39 @@ model StaffMfaChallenge {
   consumedAt DateTime? @db.Timestamptz(3)
   profile StaffMfa @relation(fields: [storeId, staffId], references: [storeId, staffId], onDelete: Restrict)
   @@index([storeId, staffId, expiresAt])
+}
+
+
+model QrReceptionSetting {
+  storeId String @id
+  enabled Boolean @default(false)
+  revision Int @default(1)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  store Store @relation(fields: [storeId], references: [id], onDelete: Restrict)
+}
+
+model QrReceptionRequest {
+  id String @id @default(cuid())
+  storeId String
+  businessDayId String
+  stationRevision Int
+  tokenHash String @unique @db.VarChar(64)
+  submittedName String @db.VarChar(120)
+  receiptCode String @db.VarChar(8)
+  status QrReceptionStatus @default(PENDING)
+  customerId String?
+  visitId String?
+  reviewedByStaffId String?
+  reviewedAt DateTime? @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  expiresAt DateTime @db.Timestamptz(3)
+  store Store @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  businessDay BusinessDay @relation(fields: [storeId, businessDayId], references: [storeId, id], onDelete: Restrict)
+  customer Customer? @relation(fields: [storeId, customerId], references: [storeId, id], onDelete: Restrict)
+  visit Visit? @relation(fields: [storeId, visitId], references: [storeId, id], onDelete: Restrict)
+  reviewedBy Staff? @relation(fields: [storeId, reviewedByStaffId], references: [storeId, id], onDelete: Restrict)
+  @@unique([businessDayId, receiptCode])
+  @@index([storeId, status, expiresAt])
+  @@index([storeId, businessDayId, createdAt])
 }

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import "./business-management.css";
+import "./qr-reception.css";
 
 export const metadata: Metadata = {
   title: "麻雀ウェーブ | 店舗管理",

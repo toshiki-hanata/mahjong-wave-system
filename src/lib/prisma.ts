@@ -10,7 +10,7 @@ const globalForPrisma = globalThis as unknown as {
 
 const connectionUrl = runtimeDatabaseUrl();
 // Do not reuse a pre-MFA generated client during a development hot reload.
-const connectionKey = createHash("sha256").update(connectionUrl ?? "").update("\0staff-mfa-client-v1").digest("hex");
+const connectionKey = createHash("sha256").update(connectionUrl ?? "").update("\0qr-reception-client-v1").digest("hex");
 
 /** Do not connect until a validated DATABASE_URL is supplied. */
 export const prisma =
