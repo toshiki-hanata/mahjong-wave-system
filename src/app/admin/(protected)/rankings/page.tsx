@@ -14,7 +14,7 @@ function selected<T extends string>(candidate: string | undefined, values: reado
   return values.includes(candidate as T) ? candidate as T : fallback;
 }
 
-function scoreLabel(stats: { scoreTotal: string }) { return `${stats.scoreTotal} pt`; }
+function scoreLabel(stats: { scoreTotal: string | null }) { return stats.scoreTotal === null ? "スコア未入力" : `${stats.scoreTotal} pt`; }
 
 export default async function RankingsPage({ searchParams }: { searchParams: Promise<{ period?: string; value?: string; metric?: string }> }) {
   const [staff, params] = await Promise.all([requireStaff(), searchParams]);
@@ -42,12 +42,12 @@ export default async function RankingsPage({ searchParams }: { searchParams: Pro
     </form>
 
     <section className="panel ranking-board" aria-label="店舗内ランキング">
-      <header className="ranking-board-heading"><div><h2>{RANKING_METRIC_LABELS[metric]}ランキング</h2><p>規定打数: {data.minimumGames}半荘 · 同値は同順位で表示します</p></div><span>{qualified.length}人</span></header>
+      <header className="ranking-board-heading"><div><h2>{RANKING_METRIC_LABELS[metric]}ランキング</h2><p>規定打数: {data.minimumGames}半荘 · 同値は同順位で表示します。{metric === "scoreTotal" ? "スコアは点数入力済みの半荘のみ集計します。" : "着順のみの半荘も集計します。"}</p></div><span>{qualified.length}人</span></header>
       {qualified.length ? <div className="ranking-table-wrap"><table className="ranking-table"><thead><tr><th>順位</th><th>顧客</th><th>半荘数</th><th>score合計</th><th>平均順位</th><th>トップ率</th><th>連対率</th><th>ラス回避率</th><th>最大連勝</th></tr></thead><tbody>
         {qualified.map((row) => <tr key={row.customerId}><td data-label="順位"><strong className="ranking-place">{row.placement}</strong></td><td data-label="顧客"><Link href={`/admin/customers/${row.customerId}`}>{row.internalName}</Link></td><td data-label="半荘数">{row.stats.gamesPlayed}</td><td data-label="score合計">{scoreLabel(row.stats)}</td><td data-label="平均順位">{row.stats.averageRank ?? "—"}</td><td data-label="トップ率">{row.stats.topRate ?? "—"}</td><td data-label="連対率">{row.stats.reachRate ?? "—"}</td><td data-label="ラス回避率">{row.stats.bustAvoidanceRate ?? "—"}</td><td data-label="最大連勝">{row.stats.maxWinStreak}</td></tr>)}
       </tbody></table></div> : <p className="ranking-empty">この期間に規定打数を満たした顧客はいません。</p>}
     </section>
-    {unqualified.length > 0 && <section className="panel ranking-board ranking-unqualified"><header className="ranking-board-heading"><div><h2>規定打数未達</h2><p>成績は表示しますが、ランキング順位の対象外です。</p></div><span>{unqualified.length}人</span></header><div className="ranking-unqualified-list">{unqualified.map((row) => <Link key={row.customerId} href={`/admin/customers/${row.customerId}`}><strong>{row.internalName}</strong><span>{row.gamesPlayed} / {data.minimumGames}半荘</span><span>{scoreLabel(row.stats)}</span></Link>)}</div></section>}
+    {unqualified.length > 0 && <section className="panel ranking-board ranking-unqualified"><header className="ranking-board-heading"><div><h2>規定打数未達</h2><p>成績は表示しますが、ランキング順位の対象外です。</p></div><span>{unqualified.length}人</span></header><div className="ranking-unqualified-list">{unqualified.map((row) => <Link key={row.customerId} href={`/admin/customers/${row.customerId}`}><strong>{row.internalName}</strong><span>{row.qualificationGames} / {data.minimumGames}半荘</span><span>{scoreLabel(row.stats)}</span></Link>)}</div></section>}
     {!prisma && <p className="ranking-error" role="status">DATABASE_URLが未設定のため、データを読み込めません。</p>}
   </div>;
 }

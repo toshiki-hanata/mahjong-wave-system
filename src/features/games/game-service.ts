@@ -2,14 +2,15 @@ import "server-only";
 
 import { Prisma, GameStatus, TableSessionStatus, VisitStatus, type PrismaClient } from "@prisma/client";
 import { recordAuditLog } from "@/lib/audit-log";
-import { calculateGame, type GameRule, type ScoredPlayer } from "./game-calculation";
+import { type GameRule } from "./game-calculation";
+import { normalizeGameResults, calculateEnteredGame, sameEnteredResults, type GameResultsInput } from "./game-result-input";
 import { lockBusinessStore, requireOpenBusinessDay } from "@/features/business-days/business-day-service";
 import { seatingToken } from "@/features/tables/seat-snapshot";
 
 type Database = Pick<PrismaClient, "$transaction">;
 type Context = { storeId: string; staffId: string };
 type RuleInput = Omit<GameRule, "tieBreakRule" | "roundingMode"> & { tieBreakRule: "POSITION_ASC"; roundingMode: "NONE" | "HALF_UP" | "DOWN"; isProvisional: boolean };
-type PointInput = { position: number; finalPoints: number }[];
+
 
 export class GameSessionUnavailableError extends Error {}
 export class GameSeatIntegrityError extends Error {}
@@ -32,9 +33,6 @@ function toRule(rule: {
   scorePointDivisor: number; scorePrecision: number; roundingMode: "NONE" | "HALF_UP" | "DOWN";
 }): GameRule { return rule; }
 
-function normalizedPoints(points: PointInput) {
-  return [...points].sort((a, b) => a.position - b.position);
-}
 
 async function ensureSessionRule(tx: Prisma.TransactionClient, session: { id: string; storeId: string; storeRuleId: string | null }, storeId: string) {
   if (session.storeRuleId) {
@@ -63,8 +61,8 @@ export async function createStoreRuleVersion(database: Database, input: RuleInpu
   });
 }
 
-export async function createGame(database: Database, input: { tableSessionId: string; idempotencyKey: string; expectedSequence: number; seatingToken: string; points: PointInput }, context: Context): Promise<{ id: string; sequenceNumber: number; replayed: boolean }> {
-  const submitted = normalizedPoints(input.points);
+export async function createGame(database: Database, input: { tableSessionId: string; idempotencyKey: string; expectedSequence: number; seatingToken: string } & GameResultsInput, context: Context): Promise<{ id: string; sequenceNumber: number; replayed: boolean }> {
+  const normalized = normalizeGameResults(input), submitted = normalized.entries;
   return database.$transaction(async (tx) => {
     await lockBusinessStore(tx, context.storeId);
     const locked = await tx.$queryRaw<Array<{ id: string; storeId: string; status: TableSessionStatus; storeRuleId: string | null; businessDayId: string | null }>>`
@@ -74,11 +72,10 @@ export async function createGame(database: Database, input: { tableSessionId: st
     if (!session) throw new GameSessionUnavailableError();
     const existing = await tx.game.findFirst({
       where: { storeId: context.storeId, tableSessionId: input.tableSessionId, idempotencyKey: input.idempotencyKey },
-      include: { results: { select: { position: true, finalPoints: true } } },
+      include: { results: { select: { position: true, finalPoints: true, rank: true } } },
     });
     if (existing) {
-      const prior = [...existing.results].sort((a, b) => a.position - b.position);
-      if (existing.sequenceNumber !== input.expectedSequence || prior.length !== submitted.length || prior.some((row, i) => row.position !== submitted[i]?.position || row.finalPoints !== submitted[i]?.finalPoints)) throw new GameIdempotencyConflictError();
+      if (existing.sequenceNumber !== input.expectedSequence || !sameEnteredResults(existing.results, input)) throw new GameIdempotencyConflictError();
       return { id: existing.id, sequenceNumber: existing.sequenceNumber, replayed: true };
     }
     if (session.status !== TableSessionStatus.ACTIVE) throw new GameSessionUnavailableError();
@@ -97,14 +94,14 @@ export async function createGame(database: Database, input: { tableSessionId: st
     if (seats.some((seat) => seat.visit.status !== VisitStatus.PLAYING || !seat.visit.customer.isActive || seat.visit.storeId !== context.storeId || seat.visit.customer.storeId !== context.storeId)) throw new GameSeatIntegrityError();
     const positionInputs = submitted.map((point) => ({ ...point, seat: seats.find((seat) => seat.position === point.position) }));
     if (positionInputs.some((point) => !point.seat)) throw new GameSeatIntegrityError();
-    const players: ScoredPlayer[] = positionInputs.map(({ position, finalPoints, seat }) => ({ visitId: seat!.visitId, customerId: seat!.visit.customerId, position, finalPoints }));
+    const players = positionInputs.map(({ position, seat }) => ({ visitId: seat!.visitId, customerId: seat!.visit.customerId, position }));
     const gameRule = toRule(rule);
-    const results = calculateGame(players, gameRule);
+    const results = calculateEnteredGame(input, players, gameRule);
     const maxSequence = await tx.game.aggregate({ where: { storeId: context.storeId, tableSessionId: session.id }, _max: { sequenceNumber: true } });
     const sequenceNumber = (maxSequence._max.sequenceNumber ?? 0) + 1;
     if (sequenceNumber !== input.expectedSequence) throw new GameEntryChangedError();
     const confirmedAt = new Date();
-    const ruleSnapshot = { ...rule, calculationVersion: "POINTS_RETURN_UMA_OKA_V1", scoreUnit: `1.0 = ${rule.scorePointDivisor} points`, scoreFormula: "(finalPoints - returnPoints) / scorePointDivisor + umaByRank + topOka", capturedAt: new Date().toISOString() } satisfies Prisma.InputJsonObject;
+    const ruleSnapshot = { ...rule, resultInputMode: normalized.inputMode, calculationVersion: normalized.inputMode === "POINTS" ? "POINTS_RETURN_UMA_OKA_V1" : "RANK_ONLY_V1", scoreUnit: `1.0 = ${rule.scorePointDivisor} points`, scoreFormula: normalized.inputMode === "POINTS" ? "(finalPoints - returnPoints) / scorePointDivisor + umaByRank + topOka" : "not calculated; ranks only", capturedAt: new Date().toISOString() } satisfies Prisma.InputJsonObject;
     const game = await tx.game.create({
       data: {
         storeId: context.storeId, tableSessionId: session.id, storeRuleId: rule.id,
@@ -114,23 +111,22 @@ export async function createGame(database: Database, input: { tableSessionId: st
         results: { create: results.map((result) => ({ visitId: result.visitId, customerId: result.customerId, position: result.position, finalPoints: result.finalPoints, rank: result.rank, scoreScaled: result.scoreScaled })) },
       }, select: { id: true, sequenceNumber: true },
     });
-    await recordAuditLog({ storeId: context.storeId, actorStaffId: context.staffId, action: "GAME_RESULT_CREATE", entityType: "Game", entityId: game.id, metadata: { sequenceNumber, ruleVersion: rule.version } }, tx);
+    await recordAuditLog({ storeId: context.storeId, actorStaffId: context.staffId, action: "GAME_RESULT_CREATE", entityType: "Game", entityId: game.id, metadata: { sequenceNumber, ruleVersion: rule.version, resultInputMode: normalized.inputMode } }, tx);
     return { ...game, replayed: false };
   }, { maxWait: 10_000, timeout: 30_000 });
 }
 
-export async function correctGame(database: Database, input: { gameId: string; idempotencyKey: string; reason: string; points: PointInput }, context: Context): Promise<{ id: string; sequenceNumber: number }> {
-  const submitted = normalizedPoints(input.points);
+export async function correctGame(database: Database, input: { gameId: string; idempotencyKey: string; reason: string } & GameResultsInput, context: Context): Promise<{ id: string; sequenceNumber: number }> {
+  const normalized = normalizeGameResults(input), submitted = normalized.entries;
   return database.$transaction(async (tx) => {
     await lockBusinessStore(tx, context.storeId);
     const originalRef = await tx.game.findFirst({ where: { id: input.gameId, storeId: context.storeId }, select: { tableSessionId: true } });
     if (!originalRef) throw new GameNotCorrectableError();
     const sessionRows = await tx.$queryRaw<Array<{ id: string }>>`SELECT "id" FROM "TableSession" WHERE "id" = ${originalRef.tableSessionId} AND "storeId" = ${context.storeId} FOR UPDATE`;
     if (!sessionRows.length) throw new GameNotCorrectableError();
-    const priorRetry = await tx.game.findFirst({ where: { storeId: context.storeId, tableSessionId: originalRef.tableSessionId, idempotencyKey: input.idempotencyKey }, include: { results: { select: { position: true, finalPoints: true } }, originalGame: { select: { id: true, correctionReason: true } } } });
+    const priorRetry = await tx.game.findFirst({ where: { storeId: context.storeId, tableSessionId: originalRef.tableSessionId, idempotencyKey: input.idempotencyKey }, include: { results: { select: { position: true, finalPoints: true, rank: true } }, originalGame: { select: { id: true, correctionReason: true } } } });
     if (priorRetry) {
-      const prior = [...priorRetry.results].sort((a, b) => a.position - b.position);
-      if (priorRetry.originalGame?.id !== input.gameId || priorRetry.originalGame.correctionReason !== input.reason || prior.length !== submitted.length || prior.some((row, index) => row.position !== submitted[index]?.position || row.finalPoints !== submitted[index]?.finalPoints)) throw new GameIdempotencyConflictError();
+      if (priorRetry.originalGame?.id !== input.gameId || priorRetry.originalGame.correctionReason !== input.reason || !sameEnteredResults(priorRetry.results, input)) throw new GameIdempotencyConflictError();
       return { id: priorRetry.id, sequenceNumber: priorRetry.sequenceNumber };
     }
     const rows = await tx.$queryRaw<Array<{ id: string }>>`SELECT "id" FROM "Game" WHERE "id" = ${input.gameId} AND "storeId" = ${context.storeId} FOR UPDATE`;
@@ -140,14 +136,14 @@ export async function correctGame(database: Database, input: { gameId: string; i
     const priorResults = [...original.results].sort((a, b) => a.position - b.position);
     if (submitted.some((point, index) => point.position !== priorResults[index]?.position)) throw new GameSeatIntegrityError();
     const snapshot = original.ruleSnapshot as unknown as GameRule & { version: number };
-    const players = submitted.map((point, index) => ({ visitId: priorResults[index]!.visitId, customerId: priorResults[index]!.customerId, position: point.position, finalPoints: point.finalPoints }));
-    const results = calculateGame(players, snapshot);
+    const players = submitted.map((point, index) => ({ visitId: priorResults[index]!.visitId, customerId: priorResults[index]!.customerId, position: point.position }));
+    const results = calculateEnteredGame(input, players, snapshot);
     const game = await tx.game.create({
       data: {
         storeId: context.storeId, tableSessionId: original.tableSessionId, storeRuleId: original.storeRuleId,
         businessDayId: original.businessDayId, freeGamePriceYen: original.freeGamePriceYen,
         sequenceNumber: original.sequenceNumber, revisionNumber: original.revisionNumber + 1, status: GameStatus.DRAFT,
-        idempotencyKey: input.idempotencyKey, ruleSnapshot: original.ruleSnapshot as Prisma.InputJsonValue,
+        idempotencyKey: input.idempotencyKey, ruleSnapshot: { ...(original.ruleSnapshot as Prisma.JsonObject), resultInputMode: normalized.inputMode, calculationVersion: normalized.inputMode === "POINTS" ? "POINTS_RETURN_UMA_OKA_V1" : "RANK_ONLY_V1", scoreFormula: normalized.inputMode === "POINTS" ? "(finalPoints - returnPoints) / scorePointDivisor + umaByRank + topOka" : "not calculated; ranks only" } as Prisma.InputJsonObject,
         createdByStaffId: context.staffId, effectiveAt: original.effectiveAt,
         results: { create: results.map((result) => ({ visitId: result.visitId, customerId: result.customerId, position: result.position, finalPoints: result.finalPoints, rank: result.rank, scoreScaled: result.scoreScaled })) },
       }, select: { id: true, sequenceNumber: true },

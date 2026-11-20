@@ -15,6 +15,12 @@ import { InvalidFinalPointsError } from "@/features/games/game-calculation";
 export type GameActionState = { message?: string; success?: boolean };
 export type GameFormState = { message?: string; needsRefresh?: boolean };
 
+function resultInputs(formData: FormData) {
+  const inputMode = formData.get("inputMode") ?? "POINTS";
+  if (inputMode === "RANK_ONLY") return { inputMode, ranks: [1, 2, 3, 4].map(rank => ({ position: Number(formData.get(`rankPosition${rank}`)), rank })) };
+  return { inputMode, points: pointInputs(formData) };
+}
+
 function pointInputs(formData: FormData) {
   return [1, 2, 3, 4].map((position) => {
     const raw = formData.get(`points${position}`);
@@ -49,21 +55,21 @@ export async function createStoreRuleAction(_previous: GameActionState, formData
 function gameFormError(error: unknown): GameFormState {
   if (error instanceof InvalidFinalPointsError) return { message: error.message };
   if (error instanceof BusinessDayClosedError) return { message: "営業を開始してから入力してください。", needsRefresh: true };
-  if (error instanceof GameEntryChangedError) return { message: "席・参加者または半荘番号が変わりました。点数は保持しています。控えてから最新の画面を確認してください。", needsRefresh: true };
-  if (error instanceof GameSessionUnavailableError) return { message: "この卓の利用は終了しているか、営業が変わっています。入力した点数を控え、卓画面を確認してください。", needsRefresh: true };
-  if (error instanceof GameSeatIntegrityError) return { message: "参加者の来店状態が変わっています。入力した点数を控え、卓画面を確認してください。", needsRefresh: true };
+  if (error instanceof GameEntryChangedError) return { message: "席・参加者または半荘番号が変わりました。入力は保持しています。控えてから最新の画面を確認してください。", needsRefresh: true };
+  if (error instanceof GameSessionUnavailableError) return { message: "この卓の利用は終了しているか、営業が変わっています。入力内容を控え、卓画面を確認してください。", needsRefresh: true };
+  if (error instanceof GameSeatIntegrityError) return { message: "参加者の来店状態が変わっています。入力内容を控え、卓画面を確認してください。", needsRefresh: true };
   if (error instanceof GameRuleUnavailableError) return { message: "半荘ルールを確認できません。管理者に確認してください。" };
-  if (error instanceof GameIdempotencyConflictError) return { message: "この送信は別の内容で処理済みです。点数を控えて履歴を確認してください。", needsRefresh: true };
+  if (error instanceof GameIdempotencyConflictError) return { message: "この送信は別の内容で処理済みです。入力内容を控えて履歴を確認してください。", needsRefresh: true };
   if (error instanceof GameNotCorrectableError) return { message: "この結果はすでに訂正されています。最新の訂正版を確認してください。", needsRefresh: true };
-  if (error instanceof Prisma.PrismaClientKnownRequestError || error instanceof Prisma.PrismaClientInitializationError) return { message: "保存できませんでした。点数は保持しています。接続状態を確認して再度お試しください。" };
+  if (error instanceof Prisma.PrismaClientKnownRequestError || error instanceof Prisma.PrismaClientInitializationError) return { message: "保存できませんでした。入力は保持しています。接続状態を確認して再度お試しください。" };
   throw error;
 }
 
 export async function createGameAction(_previous: GameFormState, formData: FormData): Promise<GameFormState> {
   const staff = await requireRole(gameEntryRoles);
-  const parsed = gameInputSchema.safeParse({ tableSessionId: formData.get("tableSessionId"), idempotencyKey: formData.get("idempotencyKey"), expectedSequence: formData.get("expectedSequence"), seatingToken: formData.get("seatingToken"), points: pointInputs(formData) });
-  if (!parsed.success) return { message: "4人の持ち点と入力画面を確認してください。点数は保持しています。" };
-  if (!prisma) return { message: "データベースへ接続できません。点数は保持しています。" };
+  const parsed = gameInputSchema.safeParse({ tableSessionId: formData.get("tableSessionId"), idempotencyKey: formData.get("idempotencyKey"), expectedSequence: formData.get("expectedSequence"), seatingToken: formData.get("seatingToken"), ...resultInputs(formData) });
+  if (!parsed.success) return { message: "4人の点数、または1位から4位の着順を確認してください。入力は保持しています。" };
+  if (!prisma) return { message: "データベースへ接続できません。入力は保持しています。" };
   let result;
   await requireStaffActionPermit(staff);
   try {
@@ -76,8 +82,8 @@ export async function createGameAction(_previous: GameFormState, formData: FormD
 
 export async function correctGameAction(_previous: GameFormState, formData: FormData): Promise<GameFormState> {
   const staff = await requireRole(gameCorrectionRoles);
-  const parsed = gameCorrectionSchema.safeParse({ gameId: formData.get("gameId"), idempotencyKey: formData.get("idempotencyKey"), reason: formData.get("reason"), points: pointInputs(formData) });
-  if (!parsed.success) return { message: "持ち点と訂正理由を確認してください。入力は保持しています。" };
+  const parsed = gameCorrectionSchema.safeParse({ gameId: formData.get("gameId"), idempotencyKey: formData.get("idempotencyKey"), reason: formData.get("reason"), ...resultInputs(formData) });
+  if (!parsed.success) return { message: "点数または着順と、訂正理由を確認してください。入力は保持しています。" };
   if (!prisma) return { message: "データベースへ接続できません。入力は保持しています。" };
   let result;
   let sessionId: string;

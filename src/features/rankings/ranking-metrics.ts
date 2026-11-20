@@ -12,8 +12,8 @@ export type PerformanceResult = {
   customerId: string;
   effectiveAt: Date;
   rank: number;
-  finalPoints: number;
-  scoreScaled: number;
+  finalPoints: number | null;
+  scoreScaled: number | null;
   scorePrecision: number;
 };
 
@@ -28,11 +28,14 @@ type ExactStats = {
   fourths: number;
   rankTotal: number;
   scoreUnits: bigint;
+  scoredGames: number;
   currentWinStreak: number;
   maxWinStreak: number;
 };
 
 export type PerformanceStats = {
+  scoredGames: number;
+  rankOnlyGames: number;
   gamesPlayed: number;
   firsts: number;
   seconds: number;
@@ -42,13 +45,14 @@ export type PerformanceStats = {
   topRate: string | null;
   reachRate: string | null;
   bustAvoidanceRate: string | null;
-  scoreTotal: string;
+  scoreTotal: string | null;
   scoreAverage: string | null;
   maxWinStreak: number;
   currentWinStreak: number;
 };
 
 export type RankingRow = {
+  qualificationGames: number;
   customerId: string;
   internalName: string;
   gamesPlayed: number;
@@ -109,12 +113,13 @@ function formatPercent(numerator: number, denominator: number): string | null {
 function summarize(stats: ExactStats, scorePrecision: number): PerformanceStats {
   const games = BigInt(stats.gamesPlayed);
   const displayPrecision = Math.max(scorePrecision, 1);
-  const scoreAverageUnits = games === BigInt(0)
+  const scoredGames = BigInt(stats.scoredGames);
+  const scoreAverageUnits = scoredGames === BigInt(0)
     ? null
-    : roundRatioHalfUp(stats.scoreUnits * pow10(displayPrecision), games * pow10(scorePrecision));
+    : roundRatioHalfUp(stats.scoreUnits * pow10(displayPrecision), scoredGames * pow10(scorePrecision));
 
   return {
-    gamesPlayed: stats.gamesPlayed,
+    gamesPlayed: stats.gamesPlayed, scoredGames: stats.scoredGames, rankOnlyGames: stats.gamesPlayed - stats.scoredGames,
     firsts: stats.firsts,
     seconds: stats.seconds,
     thirds: stats.thirds,
@@ -123,7 +128,7 @@ function summarize(stats: ExactStats, scorePrecision: number): PerformanceStats 
     topRate: formatPercent(stats.firsts, stats.gamesPlayed),
     reachRate: formatPercent(stats.firsts + stats.seconds, stats.gamesPlayed),
     bustAvoidanceRate: formatPercent(stats.gamesPlayed - stats.fourths, stats.gamesPlayed),
-    scoreTotal: formatScaled(stats.scoreUnits, scorePrecision),
+    scoreTotal: stats.scoredGames || !stats.gamesPlayed ? formatScaled(stats.scoreUnits, scorePrecision) : null,
     scoreAverage: scoreAverageUnits === null ? null : formatScaled(scoreAverageUnits, displayPrecision, false),
     maxWinStreak: stats.maxWinStreak,
     currentWinStreak: stats.currentWinStreak,
@@ -139,7 +144,7 @@ function buildExactStats(
   for (const customer of customers) {
     byCustomer.set(customer.id, {
       customer, gamesPlayed: 0, firsts: 0, seconds: 0, thirds: 0, fourths: 0,
-      rankTotal: 0, scoreUnits: BigInt(0), currentWinStreak: 0, maxWinStreak: 0,
+      rankTotal: 0, scoreUnits: BigInt(0), scoredGames: 0, currentWinStreak: 0, maxWinStreak: 0,
     });
   }
 
@@ -155,7 +160,8 @@ function buildExactStats(
     else if (result.rank === 2) stats.seconds += 1;
     else if (result.rank === 3) stats.thirds += 1;
     else stats.fourths += 1;
-    stats.scoreUnits += BigInt(result.scoreScaled) * pow10(scorePrecision - result.scorePrecision);
+    if ((result.finalPoints === null) !== (result.scoreScaled === null)) throw new Error("Game result score availability is inconsistent.");
+    if (result.scoreScaled !== null) { if (!Number.isSafeInteger(result.scoreScaled)) throw new Error("Game score is invalid."); stats.scoreUnits += BigInt(result.scoreScaled) * pow10(scorePrecision - result.scorePrecision); stats.scoredGames += 1; }
     const customerResults = grouped.get(result.customerId) ?? [];
     customerResults.push(result);
     grouped.set(result.customerId, customerResults);
@@ -187,7 +193,7 @@ function compareRatio(leftNumerator: bigint, leftDenominator: bigint, rightNumer
 }
 
 function comparePrimary(metric: RankingMetricKey, left: ExactStats, right: ExactStats): number {
-  if (metric === "scoreTotal") return left.scoreUnits > right.scoreUnits ? -1 : left.scoreUnits < right.scoreUnits ? 1 : 0;
+  if (metric === "scoreTotal") { if (Boolean(left.scoredGames) !== Boolean(right.scoredGames)) return left.scoredGames ? -1 : 1; return left.scoreUnits > right.scoreUnits ? -1 : left.scoreUnits < right.scoreUnits ? 1 : 0; }
   if (metric === "gamesPlayed") return right.gamesPlayed - left.gamesPlayed;
   if (metric === "maxWinStreak") return right.maxWinStreak - left.maxWinStreak;
   if (metric === "averageRank") return compareRatio(BigInt(left.rankTotal), BigInt(left.gamesPlayed), BigInt(right.rankTotal), BigInt(right.gamesPlayed));
@@ -212,9 +218,10 @@ export function buildRankingRows(
   // rows must continue to contain active customers only.
   const rankingCustomers = customers.filter((customer) => customer.isActive);
   const { byCustomer, scorePrecision } = buildExactStats(rankingCustomers, results);
+  const qualifyingGames = (stats: ExactStats) => metric === "scoreTotal" ? stats.scoredGames : stats.gamesPlayed;
   const ordered = [...byCustomer.values()].sort((left, right) => {
-    const leftEligible = left.gamesPlayed >= minimumGames;
-    const rightEligible = right.gamesPlayed >= minimumGames;
+    const leftEligible = qualifyingGames(left) >= minimumGames;
+    const rightEligible = qualifyingGames(right) >= minimumGames;
     if (leftEligible !== rightEligible) return leftEligible ? -1 : 1;
     const primary = comparePrimary(metric, left, right);
     return primary || left.customer.internalName.localeCompare(right.customer.internalName, "ja") || left.customer.id.localeCompare(right.customer.id);
@@ -223,7 +230,7 @@ export function buildRankingRows(
   let previousPlacement = 0;
   let rankedCount = 0;
   return ordered.map((exact) => {
-    const eligible = exact.gamesPlayed >= minimumGames;
+    const eligible = qualifyingGames(exact) >= minimumGames;
     let placement: number | null = null;
     if (eligible) {
       rankedCount += 1;
@@ -232,6 +239,7 @@ export function buildRankingRows(
       previousPlacement = placement;
     }
     return {
+      qualificationGames: qualifyingGames(exact),
       customerId: exact.customer.id,
       internalName: exact.customer.internalName,
       gamesPlayed: exact.gamesPlayed,

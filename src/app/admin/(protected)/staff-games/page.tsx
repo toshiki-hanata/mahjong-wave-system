@@ -1,3 +1,4 @@
+import { finalPointsLabel } from "@/features/games/game-result-format";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireStaff } from "@/lib/auth/current-staff";
@@ -21,9 +22,9 @@ export default async function StaffGamesPage({ searchParams }: { searchParams: P
     {!data.staff.length && <p>確認できるスタッフ情報はありません。</p>}
     {data.staff.map((person) => <article className="panel business-panel" key={person.id}>
       <h2>{person.name}{!person.isActive && <span className="participant-staff-badge">無効アカウント・履歴</span>}</h2>
-      <dl className="business-history-metrics"><div><dt>選択した営業の参加本数</dt><dd>{person.dayGames}本</dd></div><div><dt>通算参加本数</dt><dd>{person.stats.gamesPlayed}本</dd></div><div><dt>通算平均順位</dt><dd>{person.stats.averageRank ?? "—"}</dd></div><div><dt>通算成績スコア</dt><dd>{person.stats.scoreTotal}</dd></div></dl>
+      <dl className="business-history-metrics"><div><dt>選択した営業の参加本数</dt><dd>{person.dayGames}本</dd></div><div><dt>通算参加本数</dt><dd>{person.stats.gamesPlayed}本</dd></div><div><dt>通算平均順位</dt><dd>{person.stats.averageRank ?? "—"}</dd></div><div><dt>通算成績スコア</dt><dd>{person.stats.scoreTotal ?? "スコア未入力"}</dd></div></dl>
       <details className="business-time-details"><summary>成績と最近の対局を確認</summary><p>1着 {person.stats.firsts}回 ／ 2着 {person.stats.seconds}回 ／ 3着 {person.stats.thirds}回 ／ 4着 {person.stats.fourths}回</p><p>トップ率 {person.stats.topRate ?? "—"} ／ 連対率 {person.stats.reachRate ?? "—"} ／ ラス回避率 {person.stats.bustAvoidanceRate ?? "—"}</p>
-        {person.recentGames.length ? <ul className="staff-game-history">{person.recentGames.map((game) => <li key={game.id}><span>{when(game.effectiveAt)} · {game.tableName} · 第{game.sequenceNumber}半荘</span><strong>{game.rank}位 · {game.finalPoints.toLocaleString("ja-JP")}点</strong></li>)}</ul> : <p>この営業の有効な対局はまだありません。</p>}
+        {person.recentGames.length ? <ul className="staff-game-history">{person.recentGames.map((game) => <li key={game.id}><span>{when(game.effectiveAt)} · {game.tableName} · 第{game.sequenceNumber}半荘</span><strong>{game.rank}位 · {finalPointsLabel(game.finalPoints)}</strong></li>)}</ul> : <p>この営業の有効な対局はまだありません。</p>}
       </details>
     </article>)}
   </div>;

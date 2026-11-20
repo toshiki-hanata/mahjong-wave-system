@@ -5,7 +5,7 @@ import { CustomerForm } from "@/features/customers/customer-form";
 import { DeactivateCustomerForm } from "@/features/customers/deactivate-customer-form";
 import { getCustomerDetails } from "@/features/customers/customer-search";
 import { getCustomerPerformance } from "@/features/rankings/ranking-queries";
-import { scoreForDisplay } from "@/features/games/game-calculation";
+import { finalPointsLabel, gameScoreLabel } from "@/features/games/game-result-format";
 import { updateCustomerAction } from "../actions";
 import { requireStaff } from "@/lib/auth/current-staff";
 import { prisma } from "@/lib/prisma";
@@ -16,13 +16,13 @@ function dateLabel(date: Date | null, timezone: string) {
 
 function PerformanceSection({ title, stats }: { title: string; stats: NonNullable<Awaited<ReturnType<typeof getCustomerPerformance>>>["allTime"] }) {
   return <section className="panel customer-info-panel performance-panel"><h2>{title}</h2><dl className="performance-grid">
-    <div><dt>半荘数</dt><dd>{stats.gamesPlayed}</dd></div>
+    <div><dt>半荘数</dt><dd>{stats.gamesPlayed}</dd></div><div><dt>スコア集計対象</dt><dd>点数あり {stats.scoredGames}本・着順のみ {stats.rankOnlyGames}本</dd></div>
     <div><dt>順位回数</dt><dd>1着 {stats.firsts} ・2着 {stats.seconds} ・3着 {stats.thirds} ・4着 {stats.fourths}</dd></div>
     <div><dt>平均順位</dt><dd>{stats.averageRank ?? "—"}</dd></div>
     <div><dt>トップ率</dt><dd>{stats.topRate ?? "—"}</dd></div>
     <div><dt>連対率</dt><dd>{stats.reachRate ?? "—"}</dd></div>
     <div><dt>ラス回避率</dt><dd>{stats.bustAvoidanceRate ?? "—"}</dd></div>
-    <div><dt>score合計</dt><dd>{stats.scoreTotal} pt</dd></div>
+    <div><dt>score合計</dt><dd>{stats.scoreTotal === null ? "スコア未入力" : `${stats.scoreTotal} pt`}</dd></div>
     <div><dt>score平均</dt><dd>{stats.scoreAverage ? `${stats.scoreAverage} pt` : "—"}</dd></div>
     <div><dt>現在連勝</dt><dd>{stats.currentWinStreak}</dd></div>
     <div><dt>最大連勝</dt><dd>{stats.maxWinStreak}</dd></div>
@@ -56,7 +56,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
     <div className="performance-section-heading"><div><p className="eyebrow">PERSONAL PERFORMANCE</p><h2>個人成績</h2></div><Link className="text-link" href={`/admin/rankings?period=all&metric=scoreTotal`}>通算ランキングを見る →</Link></div>
     <PerformanceSection title="通算成績" stats={performance.allTime} />
     <PerformanceSection title={`${performance.monthLabel}の成績`} stats={performance.month} />
-    <section className="panel customer-info-panel performance-panel"><h2>最近の対局</h2>{performance.recentGames.length ? <div className="customer-recent-games"><table><thead><tr><th>日時</th><th>卓</th><th>半荘</th><th>順位</th><th>最終持ち点</th><th>score</th></tr></thead><tbody>{performance.recentGames.map((game) => <tr key={game.id}><td>{new Intl.DateTimeFormat("ja-JP", { dateStyle: "short", timeStyle: "short", timeZone: timezone }).format(game.effectiveAt)}</td><td>{game.tableName}</td><td>{game.sequenceNumber}</td><td>{game.rank}位</td><td>{game.finalPoints.toLocaleString("ja-JP")}点</td><td>{scoreForDisplay(game.scoreScaled, game.scorePrecision)} pt</td></tr>)}</tbody></table></div> : <p className="customer-empty-inline">有効な対局記録はありません。</p>}</section>
+    <section className="panel customer-info-panel performance-panel"><h2>最近の対局</h2>{performance.recentGames.length ? <div className="customer-recent-games"><table><thead><tr><th>日時</th><th>卓</th><th>半荘</th><th>順位</th><th>最終持ち点</th><th>score</th></tr></thead><tbody>{performance.recentGames.map((game) => <tr key={game.id}><td>{new Intl.DateTimeFormat("ja-JP", { dateStyle: "short", timeStyle: "short", timeZone: timezone }).format(game.effectiveAt)}</td><td>{game.tableName}</td><td>{game.sequenceNumber}</td><td>{game.rank}位</td><td>{finalPointsLabel(game.finalPoints)}</td><td>{gameScoreLabel(game.scoreScaled, game.scorePrecision)}</td></tr>)}</tbody></table></div> : <p className="customer-empty-inline">有効な対局記録はありません。</p>}</section>
     <section className="panel customer-form-panel"><h2>顧客情報を編集</h2><CustomerForm action={editAction} submitLabel="変更を保存" initial={{ customerCode: customer.customerCode, internalName: customer.internalName, note: customer.note ?? "", nickname: customer.publicProfile?.nickname ?? "", rankingOptIn: customer.publicProfile?.rankingOptIn ?? false, profileVisible: customer.publicProfile?.profileVisible ?? false }} /></section>
     {customer.isActive && (staff.role === Role.OWNER || staff.role === Role.MANAGER) && <section className="customer-danger-zone"><div><h2>顧客を無効化</h2><p>顧客と過去のGame履歴は保持され、通常ランキングからは除外されます。</p></div><DeactivateCustomerForm customerId={customer.id} /></section>}
     <Link className="back-link" href="/admin/customers">← 顧客一覧へ戻る</Link>

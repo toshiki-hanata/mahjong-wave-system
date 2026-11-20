@@ -17,7 +17,7 @@ export default async function NewGamePage({ params, searchParams }: { params: Pr
   const isReady = session.status === "ACTIVE" && session.seats.length === 4 && session.seats.every((seat) => seat.visit.status === "PLAYING" && seat.visit.storeId === staff.storeId && seat.visit.customer.storeId === staff.storeId && seat.visit.customer.isActive) && [1, 2, 3, 4].every((position) => session.seats.filter((seat) => seat.position === position).length === 1);
   const players = session.seats.map((seat) => ({ position: seat.position, visitId: seat.visit.id, customerId: seat.visit.customerId, customer: seat.visit.customer }));
   return <div className="page-content games-page">
-    <header className="games-heading"><div><p className="eyebrow">GAME RESULT</p><h1>{session.mahjongTable.name} · 半荘 {nextSequence}</h1><p>4人のお名前と座席を確認して、最終持ち点を入力してください。</p></div><Link className="button button-secondary" href="/admin/tables" prefetch={false}>卓一覧へ</Link></header>
+    <header className="games-heading"><div><p className="eyebrow">GAME RESULT</p><h1>{session.mahjongTable.name} · 半荘 {nextSequence}</h1><p>4人のお名前と座席を確認して、最終持ち点、または1位から4位の着順を入力してください。</p></div><Link className="button button-secondary" href="/admin/tables" prefetch={false}>卓一覧へ</Link></header>
     {saved && /^\d+$/.test(saved) && Number(saved) > 0 && <p className="game-saved-notice" role="status">半荘{saved}を保存しました。次の半荘の入力画面です。</p>}
     {session.status !== "ACTIVE" && <p className="game-warning">このSessionは終了しています。新しい結果は登録できません。</p>}
     {!isReady && session.status === "ACTIVE" && <p className="game-warning">席・来店状態を確認できないため入力できません。</p>}

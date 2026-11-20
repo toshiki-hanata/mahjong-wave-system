@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { gameResultInputSchema } from "./game-result-input";
 
 const integer = z.coerce.number().int().safe();
 export const storeRuleSchema = z.object({
@@ -16,12 +17,10 @@ export const gameInputSchema = z.object({
   expectedSequence: integer.min(1),
   seatingToken: z.string().regex(/^[a-f0-9]{64}$/),
   idempotencyKey: z.string().uuid(),
-  points: z.array(z.object({ position: integer.min(1).max(4), finalPoints: integer })).length(4),
-});
+}).and(gameResultInputSchema);
 
 export const gameCorrectionSchema = z.object({
   gameId: z.string().min(1),
   idempotencyKey: z.string().uuid(),
   reason: z.string().trim().min(1, "訂正理由を入力してください。").max(500),
-  points: z.array(z.object({ position: integer.min(1).max(4), finalPoints: integer })).length(4),
-});
+}).and(gameResultInputSchema);

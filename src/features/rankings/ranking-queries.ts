@@ -24,7 +24,7 @@ export function buildEffectiveResultWhere(storeId: string, customerId?: string, 
 }
 
 function toPerformanceResult(row: {
-  gameId: string; customerId: string; rank: number; finalPoints: number; scoreScaled: number;
+  gameId: string; customerId: string; rank: number; finalPoints: number | null; scoreScaled: number | null;
   game: { id: string; effectiveAt: Date; ruleSnapshot: unknown };
 }): PerformanceResult {
   return {

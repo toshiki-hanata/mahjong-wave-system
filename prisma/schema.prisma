@@ -483,9 +483,9 @@ model GamePlayerResult {
   visitId           String
   customerId        String
   position          Int
-  finalPoints       Int
+  finalPoints       Int?
   rank              Int
-  scoreScaled       Int
+  scoreScaled       Int?
   createdAt         DateTime @default(now()) @db.Timestamptz(3)
 
   store    Store    @relation(fields: [storeId], references: [id], onDelete: Restrict)
