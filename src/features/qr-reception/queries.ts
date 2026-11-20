@@ -28,3 +28,10 @@ export async function staffReceptionQueue(database: PrismaClient, storeId: strin
   }) : [];
   return { setting, open: Boolean(day), requests };
 }
+
+/** Count only the authenticated store's current, valid pending requests. Never return applicant names. */
+export async function pendingReceptionCount(database: PrismaClient, storeId: string, now = new Date()): Promise<number> {
+  const setting = await database.qrReceptionSetting.findUnique({ where: { storeId }, select: { enabled: true, revision: true } });
+  if (!setting?.enabled) return 0;
+  return database.qrReceptionRequest.count({ where: { storeId, stationRevision: setting.revision, status: "PENDING", expiresAt: { gt: now }, businessDay: { is: { storeId, closedAt: null } } } });
+}
