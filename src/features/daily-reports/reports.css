@@ -1,0 +1,24 @@
+.report-heading { border-bottom:2px solid #29664c; padding-bottom:16px; margin-bottom:20px; }
+.report-heading h1 { font-size:clamp(21px,4vw,30px); }
+.daily-report section { margin-block:24px; }
+.report-summary { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:14px; }
+.report-summary div { border:1px solid #d1ded7; border-radius:8px; padding:12px; }
+.report-summary dt { font-size:13px; color:#496053; }.report-summary dd { margin:8px 0 0; font-size:21px; font-weight:700; }
+.report-table-wrap { max-width:100%; overflow:auto; border:1px solid #d1ded7; border-radius:8px; }
+.daily-report table { width:100%; min-width:650px; border-collapse:collapse; font-size:13px; }
+.daily-report th,.daily-report td { padding:10px; border-bottom:1px solid #d1ded7; text-align:left; vertical-align:top; overflow-wrap:anywhere; }
+.daily-report th { background:#edf4ef; color:#1c4735; }.daily-report td small { display:block; margin-top:4px; }.report-voided { color:#69736d; background:#f4f4f4; }
+.report-note { font-size:12px; line-height:1.8; color:#46544b; }.report-signature { margin-top:32px; border-top:1px solid #a4b8ad; padding-top:20px; }
+.report-form { display:grid; gap:14px; margin-top:18px; max-width:680px; }.report-form label { display:grid; gap:7px; }.report-form label.business-confirm { display:flex; align-items:center; }
+.report-form input:not([type=checkbox]),.report-form select,.report-filter input { width:100%; box-sizing:border-box; min-height:44px; font-size:16px; border:1px solid #bccdc2; border-radius:6px; padding:9px; }
+.report-break { margin-block:14px; display:grid; gap:10px; border-bottom:1px solid #ddd; padding-bottom:15px; }.report-filter { display:flex; align-items:end; gap:12px; flex-wrap:wrap; margin-block:20px; }.report-filter label { display:grid; gap:6px; }
+@media(max-width:680px){.report-summary {grid-template-columns:1fr 1fr;}.report-summary dd {font-size:18px;}.report-form {max-width:100%;}.report-editors summary {font-size:17px;}}
+@media print {
+  @page {size:A4 landscape;margin:12mm;}
+  html,body { background:white!important; font-family:sans-serif; font-size:10pt; color:black; }
+  .sidebar,.mobile-menu,.mobile-menu-backdrop,.topbar,.business-status-strip,.report-no-print {display:none!important;}
+  .app-shell,.main-content,.page-content,.business-page {display:block!important; width:auto!important; max-width:none!important; margin:0!important; padding:0!important; overflow:visible!important;}
+  .daily-report {width:100%;}.report-heading h1 {font-size:20pt;}.daily-report h2 {font-size:13pt;page-break-after:avoid;}.daily-report section {margin-block:6mm;}
+  .report-summary {grid-template-columns:repeat(4,1fr);gap:3mm;}.report-summary div {border-radius:0;padding:3mm;break-inside:avoid;}.report-summary dd {font-size:14pt;}
+  .report-table-wrap {overflow:visible;border-radius:0;}.daily-report table {min-width:0;table-layout:fixed;font-size:8.5pt;}.daily-report th,.daily-report td {padding:2mm;border:1px solid #aaa;}.daily-report thead {display:table-header-group;}.daily-report tr {break-inside:avoid;}.report-note {font-size:8pt;color:#222;}.report-signature {break-inside:avoid;}
+}

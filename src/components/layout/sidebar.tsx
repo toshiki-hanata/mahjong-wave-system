@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { logoutAction } from "@/app/admin/actions";
@@ -14,7 +15,7 @@ const navigation: Array<{ label: string; icon: string; href: string; count?: str
   { label: "会計", icon: "￥", href: "#accounting", unavailable: true },
 ];
 
-export function Sidebar({ storeName, staffName, role, canManageStaff }: { storeName: string; staffName: string; role: string; canManageStaff: boolean }) {
+export function Sidebar({ storeName, staffName, role, canManageStaff, canViewReports }: { storeName: string; staffName: string; role: string; canManageStaff: boolean; canViewReports: boolean }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
   const toggleRef = useRef<HTMLButtonElement>(null);
@@ -73,6 +74,7 @@ export function Sidebar({ storeName, staffName, role, canManageStaff }: { storeN
           return <a key={item.label} className={`nav-item${active ? " active" : ""}`} href={item.href} onClick={() => setOpen(false)}><span className="nav-icon">{item.icon}</span>{item.label}{item.count && <span className="nav-count">{item.count}</span>}</a>;
         })}
         <p className="nav-label nav-label-spaced">ANALYTICS</p>
+        {canViewReports && <Link prefetch={false} className={`nav-item${pathname.startsWith("/admin/reports") ? " active" : ""}`} href="/admin/reports" onClick={() => setOpen(false)}><span className="nav-icon">▤</span>日報・勤務・経費</Link>}
         {canManageRules && <a className={`nav-item${pathname.startsWith("/admin/store-rules") ? " active" : ""}`} href="/admin/store-rules" onClick={() => setOpen(false)}><span className="nav-icon">⚙</span>半荘ルール</a>}
         {canManageStaff && <a className={`nav-item${pathname.startsWith("/admin/staff-sessions") ? " active" : ""}`} href="/admin/staff-sessions" onClick={() => setOpen(false)}><span className="nav-icon">♙</span>スタッフセッション管理</a>}
         {canManageStaff && <a className={`nav-item${pathname === "/admin/security/mfa" ? " active" : ""}`} href="/admin/security/mfa" onClick={() => setOpen(false)}><span className="nav-icon">⚿</span>自分の追加認証</a>}

@@ -91,6 +91,10 @@ enum CampaignProgressStatus {
 }
 
 model Store {
+  reportWorkers DailyReportWorker[]
+  reportShifts DailyReportShift[]
+  reportCashEntries DailyReportCashEntry[]
+  reportRequests DailyReportRequest[]
   id        String   @id @default(cuid())
   name      String
   timezone  String
@@ -130,6 +134,7 @@ model Store {
 }
 
 model Staff {
+  dailyReportRequests DailyReportRequest[]
   legacyPointChanges LegacyPointChange[]
   id           String   @id @default(cuid())
   storeId      String
@@ -467,6 +472,8 @@ model Game {
 // A business day is explicitly opened/closed; midnight never closes it automatically.
 // The partial unique index for one open day per store lives in the migration.
 model BusinessDay {
+  reportShifts DailyReportShift[]
+  reportCashEntries DailyReportCashEntry[]
   id String @id @default(cuid())
   storeId String
   requestKey String
@@ -861,4 +868,81 @@ model LegacyPointChange {
   @@unique([storeId, customerId, ledgerEntryId])
   @@unique([storeId, customerId, migrationId, revision])
   @@index([storeId, customerId, createdAt])
+}
+
+model DailyReportWorker {
+  id String @id @default(cuid())
+  storeId String
+  name String @db.VarChar(80)
+  hourlyRateYen Int
+  roundingMode String @db.VarChar(12)
+  nightRateBps Int @default(2500)
+  overtimeRateBps Int @default(2500)
+  holidayRateBps Int @default(3500)
+  overtimeAfterMinutes Int @default(480)
+  revision Int @default(1)
+  isActive Boolean @default(true)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  store Store @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  shifts DailyReportShift[]
+  cashEntries DailyReportCashEntry[]
+  @@unique([storeId, id])
+  @@index([storeId, isActive, name])
+}
+model DailyReportShift {
+  id String @id @default(cuid())
+  storeId String
+  businessDayId String
+  workerId String
+  workerName String @db.VarChar(80)
+  startedAt DateTime @db.Timestamptz(3)
+  endedAt DateTime? @db.Timestamptz(3)
+  breaks Json
+  ruleSnapshot Json
+  statutoryHoliday Boolean @default(false)
+  voidedAt DateTime? @db.Timestamptz(3)
+  voidReason String? @db.VarChar(300)
+  revision Int @default(1)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  store Store @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  businessDay BusinessDay @relation(fields: [storeId, businessDayId], references: [storeId, id], onDelete: Restrict)
+  worker DailyReportWorker @relation(fields: [storeId, workerId], references: [storeId, id], onDelete: Restrict)
+  @@unique([storeId, id])
+  @@index([storeId, businessDayId, startedAt])
+  @@index([storeId, workerId, startedAt])
+}
+model DailyReportCashEntry {
+  id String @id @default(cuid())
+  storeId String
+  businessDayId String
+  workerId String?
+  workerName String? @db.VarChar(80)
+  kind String @db.VarChar(24)
+  amountYen Int
+  description String @db.VarChar(300)
+  occurredAt DateTime @db.Timestamptz(3)
+  voidedAt DateTime? @db.Timestamptz(3)
+  voidReason String? @db.VarChar(300)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  store Store @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  businessDay BusinessDay @relation(fields: [storeId, businessDayId], references: [storeId, id], onDelete: Restrict)
+  worker DailyReportWorker? @relation(fields: [storeId, workerId], references: [storeId, id], onDelete: Restrict)
+  @@unique([storeId, id])
+  @@index([storeId, businessDayId, occurredAt])
+  @@index([storeId, businessDayId, workerId, kind])
+}
+model DailyReportRequest {
+  id String @id @default(cuid())
+  storeId String
+  staffId String
+  requestKey String @db.VarChar(36)
+  operation String @db.VarChar(24)
+  inputHash String @db.VarChar(64)
+  entityId String
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  store Store @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  staff Staff @relation(fields: [storeId, staffId], references: [storeId, id], onDelete: Restrict)
+  @@unique([storeId, requestKey])
 }

@@ -24,7 +24,11 @@ export async function assertRuntimeDatabaseRole(database: Pick<PrismaClient, "$q
         OR has_table_privilege(current_user, ${qualifiedSqlTableName("LegacyPointMigration", env)}, 'UPDATE')
         OR has_table_privilege(current_user, ${qualifiedSqlTableName("LegacyPointMigration", env)}, 'DELETE')
         OR has_table_privilege(current_user, ${qualifiedSqlTableName("LegacyPointChange", env)}, 'UPDATE')
-        OR has_table_privilege(current_user, ${qualifiedSqlTableName("LegacyPointChange", env)}, 'DELETE')) AS unsafe
+        OR has_table_privilege(current_user, ${qualifiedSqlTableName("LegacyPointChange", env)}, 'DELETE')
+        OR has_table_privilege(current_user, ${qualifiedSqlTableName("DailyReportRequest", env)}, 'UPDATE')
+        OR has_table_privilege(current_user, ${qualifiedSqlTableName("DailyReportRequest", env)}, 'DELETE')
+        OR has_table_privilege(current_user, ${qualifiedSqlTableName("DailyReportCashEntry", env)}, 'DELETE')
+        OR has_column_privilege(current_user, ${qualifiedSqlTableName("DailyReportCashEntry", env)}, 'amountYen', 'UPDATE')) AS unsafe
       FROM pg_roles r JOIN pg_database d ON d.datname = current_database()
       WHERE r.rolname = current_user`;
     if (rows.length !== 1 || rows[0].unsafe !== false) throw new Error("本番用DB権限の確認が必要です。");

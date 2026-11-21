@@ -1,0 +1,15 @@
+import { describe,it,expect } from "vitest";
+import { calculateReportWage,validateWorkPeriod } from "./payroll";
+import { payRuleSchema } from "./policy";
+const rule={hourlyRateYen:1200,roundingMode:"EXACT" as const,nightRateBps:2500,overtimeRateBps:2500,holidayRateBps:3500,overtimeAfterMinutes:480};
+const date=(v:string)=>new Date("2026-11-19T"+v+":00+09:00");
+describe("daily wage references preserve actual work",()=>{
+ it("calculates exact minutes and independently records paid 15-minute ceiling",()=>{const start=date("10:00"),end=date("11:01");expect(calculateReportWage(start,end,[],rule,"Asia/Tokyo",false)).toMatchObject({workedMinutes:61,paidMinutes:61,grossYen:1220});expect(calculateReportWage(start,end,[],{...rule,roundingMode:"CEIL_15"},"Asia/Tokyo",false)).toMatchObject({workedMinutes:61,paidMinutes:75,grossYen:1500});expect(start).toEqual(date("10:00"));expect(end).toEqual(date("11:01"));});
+ it("handles midnight and the exact 22:00/05:00 night boundaries",()=>{const result=calculateReportWage(date("21:00"),new Date("2026-11-20T06:00:00+09:00"),[],rule,"Asia/Tokyo",false);expect(result).toMatchObject({workedMinutes:540,nightMinutes:420,overtimeMinutes:60,grossYen:13200});});
+ it("deducts only explicitly recorded break intervals including night breaks",()=>{const result=calculateReportWage(date("21:00"),new Date("2026-11-20T06:00:00+09:00"),[{start:new Date("2026-11-20T00:00:00+09:00").toISOString(),end:new Date("2026-11-20T01:00:00+09:00").toISOString()}],rule,"Asia/Tokyo",false);expect(result).toMatchObject({workedMinutes:480,nightMinutes:360,overtimeMinutes:0,grossYen:11400});});
+ it("does not auto-deduct a break from a long recorded shift",()=>{expect(calculateReportWage(date("10:00"),date("19:00"),[],rule,"Asia/Tokyo",false).workedMinutes).toBe(540);});
+ it("combines holiday and night premiums without stacking daily overtime",()=>{expect(calculateReportWage(date("14:00"),date("23:00"),[],rule,"Asia/Tokyo",true)).toMatchObject({workedMinutes:540,nightMinutes:60,overtimeMinutes:0,holidayMinutes:540,grossYen:14880});});
+ it("continues daily overtime across separated work records",()=>{expect(calculateReportWage(date("20:00"),date("22:00"),[],rule,"Asia/Tokyo",false,420)).toMatchObject({workedMinutes:120,overtimeMinutes:60,grossYen:2700});});
+ it("rounds fractional yen upwards only at the final total",()=>{expect(calculateReportWage(date("10:00"),date("10:01"),[],{...rule,hourlyRateYen:1000},"Asia/Tokyo",false).grossYen).toBe(17);});
+ it("rejects inverted, overlapping, incomplete or outside breaks and invalid rates",()=>{expect(()=>validateWorkPeriod(date("10:00"),date("09:00"),[])).toThrow();expect(()=>validateWorkPeriod(date("10:00"),date("12:00"),[{start:date("09:00").toISOString(),end:date("11:00").toISOString()}])).toThrow();expect(()=>validateWorkPeriod(date("10:00"),null,[{start:date("10:30").toISOString(),end:date("11:00").toISOString()}])).toThrow();expect(payRuleSchema.safeParse({...rule,roundingMode:"FLOOR_15"}).success).toBe(false);expect(payRuleSchema.safeParse({...rule,nightRateBps:0}).success).toBe(false);});
+});

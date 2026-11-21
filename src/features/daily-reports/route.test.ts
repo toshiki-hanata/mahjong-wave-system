@@ -1,0 +1,14 @@
+import { beforeEach,afterEach,describe,it,expect,vi } from "vitest";
+import { NextRequest } from "next/server";
+const m=vi.hoisted(()=>({staff:vi.fn(),quota:vi.fn(),report:vi.fn(),csv:vi.fn()}));
+vi.mock("@/lib/auth/current-staff",()=>({getCurrentStaff:m.staff}));vi.mock("@/lib/auth/staff-action-quota",()=>({reserveStaffAction:m.quota}));vi.mock("@/lib/prisma",()=>({prisma:{}}));vi.mock("./queries",()=>({readDailyReport:m.report}));vi.mock("./csv",()=>({dailyReportCsv:m.csv}));
+import { GET } from "@/app/api/admin/reports/[businessDayId]/csv/route";
+const req=(headers:Record<string,string>={})=>new NextRequest("https://trial.example.com/api/admin/reports/day/csv",{headers}),context={params:Promise.resolve({businessDayId:"day"})};
+beforeEach(()=>{vi.stubEnv("DAILY_REPORTS_ENABLED","true");vi.stubEnv("APP_ORIGIN","https://trial.example.com");vi.resetAllMocks();});afterEach(()=>vi.unstubAllEnvs());
+describe("OWNER-only private CSV gateway",()=>{
+ it("requires explicit feature enablement and rejects cross-site requests before auth",async()=>{vi.stubEnv("DAILY_REPORTS_ENABLED","false");expect((await GET(req(),context)).status).toBe(404);vi.stubEnv("DAILY_REPORTS_ENABLED","true");expect((await GET(req({origin:"https://attacker.invalid"}),context)).status).toBe(403);expect((await GET(req({"sec-fetch-site":"cross-site"}),context)).status).toBe(403);expect(m.staff).not.toHaveBeenCalled();});
+ it.each(["STAFF","MANAGER"])("denies %s without loading the report",async role=>{m.staff.mockResolvedValue({role});expect((await GET(req(),context)).status).toBe(403);expect(m.report).not.toHaveBeenCalled();});
+ it("returns private JSON 401 for guests and 429 for a saturated actor quota",async()=>{m.staff.mockResolvedValue(null);let r=await GET(req(),context);expect(r.status).toBe(401);expect(r.headers.get("cache-control")).toContain("no-store");m.staff.mockResolvedValue({role:"OWNER"});m.quota.mockResolvedValue(false);r=await GET(req(),context);expect(r.status).toBe(429);expect(m.report).not.toHaveBeenCalled();});
+ it("takes store and actor only from the verified staff cookie and returns attachment headers",async()=>{m.staff.mockResolvedValue({id:"owner",storeId:"trusted-store",role:"OWNER",sessionVersion:3});m.quota.mockResolvedValue(true);m.report.mockResolvedValue({day:{label:"2026-11-19"}});m.csv.mockReturnValue('\uFEFF"架空"\r\n');const r=await GET(req(),context);expect(r.status).toBe(200);expect(m.report).toHaveBeenCalledWith({}, {storeId:"trusted-store",staffId:"owner",sessionVersion:3},"day",true);expect(r.headers.get("content-disposition")).toContain("attachment;");expect(r.headers.get("cache-control")).toContain("no-store");expect(r.headers.get("vary")).toBe("Cookie");});
+ it("never sends database or exception contents to the client",async()=>{m.staff.mockRejectedValue(Error("secret database token"));const r=await GET(req(),context);expect(r.status).toBe(503);expect(await r.text()).not.toContain("secret");});
+});
