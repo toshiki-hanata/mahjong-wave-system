@@ -111,3 +111,12 @@ Deployment ID：`dpl_9vg53G3nKuRqgBpwH5W8KQHczu4F`。READY、実行地域sin1、
 ## 2026-11-21 顧客マイページ・ポイント引継ぎの追加
 
 最新Previewはdpl_GWa3f26fg42zHWh6hzXBwF3UwRnW、業務コード769833b、189ファイル。固定URL/memberで本人の成績・ポイントを表示。初回はスタッフの会員別QRと双方の番号照合、パスキー登録、復旧コード保管が必要。OWNER/MANAGERが旧カードを目視確認して引継ぎ・差分訂正できる。[改善記録](USABILITY_IMPROVEMENTS.md)のU05公開反映に検証と更新/切り戻し手順を記録。隔離HTTPSの96+26+12+38項目成功、固定URLの38項目と通常スタッフの読み取り確認成功。既存業務データ不変、バックアップ分岐作成済み、復元/実機は未確認。
+
+
+## 2026-11-21 OWNER限定の日報・給与・CSV/印刷
+
+最新はPreview dpl_7XpWHLtu97wTNcL74qnJPhb7JcHR（https://mahjong-wave-trial-cu72zu688-tsudatsu-diet.vercel.app）、業務コード9360701の選別200ファイル。固定URL https://mahjong-wave-trial.vercel.app/admin/reports でOWNERのみが利用。Vercelアカウント不要、アプリの認証/MFAは維持。有料化・Production公開・main変更はしていない。
+
+隔離HTTPS：日報33、既存営業96、顧客認証26、入口38+15項目成功。固定URL：入口38+15と既存STAFFの5業務画面/受付/顧客ログイン/日報403確認成功、JS例外0。実データの書込やアカウント再設定なし。DB完了migration22件、追加前後で12業務テーブル不変。直前分岐br-dry-mud-bi1dh15jは計算リソースなし・無料枠、復元未検証。
+
+操作・給与計算の範囲・更新フラグ・切り戻しは[日報の説明](DAILY_REPORTS.md)。実スマホ・実紙・正式給与/営業受入は未確認。

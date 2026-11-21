@@ -45,4 +45,15 @@
 
 型・lint・最適化ビルド成功。既存を含め476件成功/47件未実行。日報追加36件は給与境界・丸め・休憩・未確定・負残・履歴・二重送信・競合・権限/店舗分離・監査ロールバック・数式対策・入口/ヘッダー等。ローカルの架空店舗で実OWNER/MANAGER MFAログインを含むChrome/WebKitの32項目成功。印刷CSSと390px画像を目視確認。スマホのメニュー/受付件数の重なりと重複CSS、Nextのスクロール警告も修正。追加migrationの重複FKを隔離テストで検出し、全体rollback・修正・公式resolve手順・再適用・再発防止テストまで完了。保持対象DBに失敗migrationを実行していない。
 
-現時点では日報の固定URL公開前。次は同じコミットの選別ソースを最小権限の隔離HTTPS Previewで再確認し、保持対象DBのバックアップ・追加migration・内容不変検査後に公開する。DAILY_REPORTS_ENABLED=trueが明示されない環境では画面/API/操作を閉じる。現在のVercel Production停止ガードは維持。実iPhone/Android・実印刷・復元・実データ/給与の運用受入は未確認。
+固定URL [日報一覧](https://mahjong-wave-trial.vercel.app/admin/reports)へ公開済み。業務コード9360701、200ファイルの選別版、Vercel Preview dpl_7XpWHLtu97wTNcL74qnJPhb7JcHR。隔離HTTPSで日報33項目、既存営業96項目、顧客認証/ポイント26項目、一般入口38項目、日報入口15項目を確認。Chrome/WebKitの390pxと印刷CSS画像を目視し、実機とは区別した。固定URLでも入口38+15項目、既存STAFFの5業務画面/QR/顧客ログイン/日報拒否を読み取り確認し、顧客・対局・ポイントを変更していない。
+
+保持対象DBは直前の無料・計算リソースなしバックアップ分岐を作成後、追加migration1件を適用（完了22件）。既存12業務テーブルの全行ハッシュ不変、新日報の最小権限・金額上書き禁止・送信履歴の追記専用を実接続で確認。実データの試験投入/seed/resetやMFAの再設定はしていない。DAILY_REPORTS_ENABLED=trueが明示されない環境では画面/API/操作を閉じる。現在のVercel Production停止ガードは維持。実iPhone/Android・実印刷・復元・実データ/給与の運用受入は未確認。
+
+
+## 今後の更新・切り戻し
+
+同じ検証済みコミットからsrc（試験除外）・public・package/config・PrismaスキーマだけをGit外の新しい公開フォルダへ選別する。env/資格情報/顧客資料/テスト/ログ/モックは公開しない。新migrationがあるときは隔離分岐で先に検証し、保持DBの退避/行ハッシュ確認/最小権限の追加を行う。`DAILY_REPORTS_ENABLED=true`をPreviewの実行時とビルド時へ明示し、QR/customer portalの既存フラグと固定APP_ORIGIN/RP_IDを維持する。接続情報は既存の暗号化環境変数を使い、owner接続をデプロイしない。
+
+READY後に固定URLを新Previewへaliasし、未認証401・STAFF/MANAGER403・OWNER操作・CSV・印刷・営業基本処理を再確認。個別Previewホストは設定されたOriginと異なるため、操作には固定URLを使う。不具合は直前のPreview dpl_GWa3f26fg42zHWh6hzXBwF3UwRnW（https://mahjong-wave-trial-i1l7ym6rl-tsudatsu-diet.vercel.app）へaliasを戻す。追加テーブルは削除せず保持する。DB復旧は営業入力の停止・対象時点と差分の確認・隔離復元の検証をして判断する。分岐を作っただけで復元試験成功とはしない。
+
+公開元コピー・manifest・画像・架空CSV・検証記録はGit外 `cleanup-daily-report-work`、正本はDesktopのリポジトリ。元の96画面モック/PDFは保持し、モックのWeb公開は再開していない。Gitの共有先は作業ブランチcodex/mobile-reception。mainへの反映・履歴の強制書換えは行わない。
