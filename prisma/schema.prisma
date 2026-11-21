@@ -118,6 +118,10 @@ model Store {
   gameResults      GamePlayerResult[]
   businessDays     BusinessDay[]
   pointLedgerEntries PointLedgerEntry[]
+  customerPasskeys CustomerPasskey[]
+  customerPortalSessions CustomerPortalSession[]
+  customerAuthChallenges CustomerAuthChallenge[]
+  customerRecoveryCodes CustomerRecoveryCode[]
   customerAuthIdentities CustomerAuthIdentity[]
   customerPairings CustomerPairing[]
   qrReceptionSetting QrReceptionSetting?
@@ -126,6 +130,7 @@ model Store {
 }
 
 model Staff {
+  legacyPointChanges LegacyPointChange[]
   id           String   @id @default(cuid())
   storeId      String
   name         String
@@ -215,6 +220,7 @@ model Customer {
   gameResults      GamePlayerResult[]
 
   pointLedgerEntries PointLedgerEntry[]
+  legacyPointMigration LegacyPointMigration?
 
   @@unique([storeId, customerCode])
   authIdentity CustomerAuthIdentity?
@@ -234,9 +240,15 @@ model CustomerAuthIdentity {
   userHandle String @unique @default(uuid()) @db.VarChar(64)
   activatedAt DateTime? @db.Timestamptz(3)
   authVersion Int @default(0)
+  recoveryVersion Int @default(0)
+  recoveryAcknowledgedAt DateTime? @db.Timestamptz(3)
   createdAt DateTime @default(now()) @db.Timestamptz(3)
   store Store @relation(fields: [storeId], references: [id], onDelete: Restrict)
   customer Customer @relation(fields: [storeId, customerId], references: [storeId, id], onDelete: Restrict)
+  passkeys CustomerPasskey[]
+  sessions CustomerPortalSession[]
+  challenges CustomerAuthChallenge[]
+  recoveryCodes CustomerRecoveryCode[]
   pairings CustomerPairing[]
   @@unique([storeId, customerId])
   @@unique([storeId, id])
@@ -265,6 +277,8 @@ model CustomerPairing {
   identity CustomerAuthIdentity @relation(fields: [storeId, customerId], references: [storeId, customerId], onDelete: Restrict, map: "CustomerPairing_identity_fkey")
   issuedBy Staff @relation("PairingIssuedBy", fields: [storeId, issuedByStaffId], references: [storeId, id], onDelete: Restrict)
   confirmedBy Staff? @relation("PairingConfirmedBy", fields: [storeId, confirmedByStaffId], references: [storeId, id], onDelete: Restrict)
+  challenges CustomerAuthChallenge[]
+  @@unique([storeId, customerId, id])
   @@unique([storeId, requestKey])
   @@index([storeId, customerId, createdAt])
   @@index([storeId, issuedByStaffId, createdAt])
@@ -289,6 +303,7 @@ model PointLedgerEntry {
   actor Staff @relation(fields: [storeId, actorStaffId], references: [storeId, id], onDelete: Restrict)
   reverses PointLedgerEntry? @relation("PointLedgerReversal", fields: [storeId, customerId, reversesEntryId], references: [storeId, customerId, id], onDelete: Restrict, onUpdate: Restrict)
   reversalEntries PointLedgerEntry[] @relation("PointLedgerReversal")
+  legacyChange LegacyPointChange?
 
   @@unique([storeId, requestKey])
   @@unique([storeId, customerId, id])
@@ -737,4 +752,113 @@ model QrReceptionRequest {
   @@unique([businessDayId, receiptCode])
   @@index([storeId, status, expiresAt])
   @@index([storeId, businessDayId, createdAt])
+}
+
+model CustomerPasskey {
+  id String @id @default(cuid())
+  storeId String
+  customerId String
+  credentialId String @unique @db.VarChar(2048)
+  publicKey Bytes
+  counter BigInt @default(0)
+  transports String[]
+  deviceType String @db.VarChar(20)
+  backedUp Boolean
+  label String @db.VarChar(80)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  lastUsedAt DateTime? @db.Timestamptz(3)
+  revokedAt DateTime? @db.Timestamptz(3)
+  store Store @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  identity CustomerAuthIdentity @relation(fields: [storeId, customerId], references: [storeId, customerId], onDelete: Restrict, onUpdate: Restrict)
+  @@index([storeId, customerId, revokedAt])
+}
+
+model CustomerPortalSession {
+  id String @id @default(cuid())
+  storeId String
+  customerId String
+  tokenHash String @unique @db.VarChar(64)
+  authVersion Int
+  authenticatedAt DateTime @db.Timestamptz(3)
+  expiresAt DateTime @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  revokedAt DateTime? @db.Timestamptz(3)
+  recoveryAcknowledgedAt DateTime? @db.Timestamptz(3)
+  store Store @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  identity CustomerAuthIdentity @relation(fields: [storeId, customerId], references: [storeId, customerId], onDelete: Restrict, onUpdate: Restrict)
+  @@index([storeId, customerId, expiresAt])
+}
+
+model CustomerAuthChallenge {
+  id String @id @default(cuid())
+  tokenHash String @unique @db.VarChar(64)
+  challenge String @db.VarChar(256)
+  kind String @db.VarChar(12)
+  storeId String?
+  customerId String?
+  authVersion Int?
+  pairingId String?
+  recoveryCodeId String?
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  expiresAt DateTime @db.Timestamptz(3)
+  usedAt DateTime? @db.Timestamptz(3)
+  store Store? @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  identity CustomerAuthIdentity? @relation(fields: [storeId, customerId], references: [storeId, customerId], onDelete: Restrict, onUpdate: Restrict)
+  pairing CustomerPairing? @relation(fields: [storeId, customerId, pairingId], references: [storeId, customerId, id], onDelete: Restrict, onUpdate: Restrict)
+  recovery CustomerRecoveryCode? @relation(fields: [storeId, customerId, recoveryCodeId], references: [storeId, customerId, id], onDelete: Restrict, onUpdate: Restrict)
+  @@index([expiresAt])
+  @@index([storeId, customerId, kind])
+}
+
+model CustomerRecoveryCode {
+  id String @id @default(cuid())
+  storeId String
+  customerId String
+  codeHash String @unique @db.VarChar(64)
+  generation Int
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  usedAt DateTime? @db.Timestamptz(3)
+  revokedAt DateTime? @db.Timestamptz(3)
+  store Store @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  identity CustomerAuthIdentity @relation(fields: [storeId, customerId], references: [storeId, customerId], onDelete: Restrict, onUpdate: Restrict)
+  challenges CustomerAuthChallenge[]
+  @@unique([storeId, customerId, id])
+  @@index([storeId, customerId, generation])
+}
+
+// Immutable migration header; corrections are append-only changes, never an overwritten balance.
+model LegacyPointMigration {
+  id String @id @default(cuid())
+  storeId String
+  customerId String
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  customer Customer @relation(fields: [storeId, customerId], references: [storeId, id], onDelete: Restrict)
+  changes LegacyPointChange[]
+  @@unique([storeId, customerId])
+  @@unique([storeId, customerId, id])
+}
+model LegacyPointChange {
+  id String @id @default(cuid())
+  storeId String
+  customerId String
+  migrationId String
+  actorStaffId String
+  requestKey String @db.VarChar(36)
+  kind String @db.VarChar(12)
+  source String @db.VarChar(12)
+  previousAmount Int
+  importedAmount Int
+  expectedBalance Int
+  revision Int
+  ledgerEntryId String?
+  reason String @db.VarChar(500)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  migration LegacyPointMigration @relation(fields: [storeId, customerId, migrationId], references: [storeId, customerId, id], onDelete: Restrict, onUpdate: Restrict)
+  actor Staff @relation(fields: [storeId, actorStaffId], references: [storeId, id], onDelete: Restrict)
+  ledgerEntry PointLedgerEntry? @relation(fields: [storeId, customerId, ledgerEntryId], references: [storeId, customerId, id], onDelete: Restrict, onUpdate: Restrict)
+  @@unique([storeId, requestKey])
+  @@unique([ledgerEntryId])
+  @@unique([storeId, customerId, ledgerEntryId])
+  @@unique([storeId, customerId, migrationId, revision])
+  @@index([storeId, customerId, createdAt])
 }

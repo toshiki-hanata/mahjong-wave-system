@@ -8,6 +8,8 @@ const nextConfig = {
   // Keep build output outside OneDrive's special .next directory to avoid
   // Windows sync locks when Next replaces route-segment directories.
   distDir: "build",
+  // Server Function arguments can contain QR claims, recovery codes and customer data.
+  logging: { serverFunctions: false },
 };
 
 export default nextConfig;

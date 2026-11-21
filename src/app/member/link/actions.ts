@@ -1,4 +1,5 @@
 "use server";
+import { memberMutation } from "@/features/customer-auth/portal-http";
 import { prisma } from "@/lib/prisma";
 import { createAuthToken, isAuthToken, hashAuthToken } from "@/features/customer-auth/auth-tokens";
 import { readPairingClaim, requireCustomerOrigin, writePairingClaim } from "@/features/customer-auth/pairing-cookie";
@@ -7,7 +8,7 @@ import { claimCustomerPairing, confirmCustomerPairing, readClaimedPairing, type 
 const invalid: CustomerLinkState = { state: "INVALID" };
 export async function claimPairingAction(token: string): Promise<CustomerLinkState> {
   try {
-    await requireCustomerOrigin();
+    await requireCustomerOrigin(); await memberMutation();
     if (!prisma || !isAuthToken(token)) return invalid;
     const previous = await readPairingClaim();
     const row = await prisma.customerPairing.findUnique({ where: { tokenHash: hashAuthToken(token) }, select: { claimHash: true } });
@@ -18,8 +19,8 @@ export async function claimPairingAction(token: string): Promise<CustomerLinkSta
   } catch { return invalid; }
 }
 export async function readPairingAction(): Promise<CustomerLinkState> {
-  try { await requireCustomerOrigin(); return prisma ? await readClaimedPairing(prisma, await readPairingClaim()) : invalid; } catch { return invalid; }
+  try { await requireCustomerOrigin(); await memberMutation(); return prisma ? await readClaimedPairing(prisma, await readPairingClaim()) : invalid; } catch { return invalid; }
 }
 export async function confirmPairingAction(): Promise<CustomerLinkState> {
-  try { await requireCustomerOrigin(); return prisma ? await confirmCustomerPairing(prisma, await readPairingClaim()) : invalid; } catch { return invalid; }
+  try { await requireCustomerOrigin(); await memberMutation(); return prisma ? await confirmCustomerPairing(prisma, await readPairingClaim()) : invalid; } catch { return invalid; }
 }

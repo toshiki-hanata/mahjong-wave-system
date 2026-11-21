@@ -1,5 +1,6 @@
 "use server";
 import { requireStaffActionPermit } from "@/lib/auth/staff-action-permit";
+import { saveLegacyPoints, legacyPointsSchema } from "@/features/points/legacy-points-service";
 import { Prisma } from "@prisma/client";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
@@ -37,4 +38,15 @@ export async function reversePointsAction(customerId: string, _previous: PointFo
   try { await reversePointAdjustment(prisma, parsed.data, { storeId: actor.storeId, staffId: actor.id }); } catch (error) { return message(error); }
   revalidatePath(`/admin/customers/${customerId}/points`);
   redirect(`/admin/customers/${encodeURIComponent(customerId)}/points?notice=reversed`);
+}
+
+export async function saveLegacyPointsAction(customerId: string, _previous: PointFormState, formData: FormData): Promise<PointFormState> {
+  const actor = await requireRole(["OWNER", "MANAGER"]);
+  const parsed = legacyPointsSchema.safeParse({ customerId, requestKey: formData.get("requestKey"), expectedBalance: Number(formData.get("expectedBalance")), expectedImported: formData.get("expectedImported") === "" ? null : Number(formData.get("expectedImported")), amount: formData.get("amount") === "" ? NaN : Number(formData.get("amount")), source: formData.get("source"), reason: formData.get("reason"), personConfirmed: formData.get("personConfirmed") === "on", rosterConfirmed: formData.get("rosterConfirmed") === "on", cardConfirmed: formData.get("cardConfirmed") === "on", duplicateChecked: formData.get("duplicateChecked") === "on" });
+  if (!parsed.success) return { message: "ポイント数・理由と、すべての本人確認欄を確認してください。" };
+  if (!prisma) return { message: "データベースへ接続できません。" };
+  await requireStaffActionPermit(actor);
+  try { await saveLegacyPoints(prisma, parsed.data, { storeId: actor.storeId, staffId: actor.id }); } catch (error) { return message(error); }
+  revalidatePath("/admin/customers/" + customerId + "/points"); revalidatePath("/admin/customer-onboarding"); revalidatePath("/member");
+  redirect("/admin/customers/" + encodeURIComponent(customerId) + "/points?notice=migrated");
 }

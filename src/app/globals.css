@@ -23,3 +23,12 @@
 .mfa-card{font-size:14px;line-height:1.65;min-width:0}.mfa-card p{overflow-wrap:anywhere}.mfa-card .login-form label,.mfa-settings .login-form label{font-size:14px}.mfa-card .login-form input,.mfa-settings .login-form input{font-size:16px;min-height:44px}.mfa-card .button,.mfa-settings .button{min-height:44px;font-size:14px;white-space:normal}.mfa-card .login-error{font-size:13px}.mfa-card small{margin-bottom:14px;font-size:12px}.mfa-setup{margin-bottom:20px}.mfa-setup img{max-width:100%;height:auto;display:block;margin:12px auto}.mfa-card summary{cursor:pointer;min-height:44px;padding:10px 0}.mfa-secret{display:block;overflow-wrap:anywhere;user-select:all;background:#f1f5f1;padding:12px;border-radius:6px}.mfa-codes{list-style:none;padding:0;margin:16px 0;display:grid;gap:8px}.mfa-codes code{font-size:12px;overflow-wrap:anywhere;user-select:all}.mfa-codes li{background:#f1f5f1;padding:8px;border-radius:6px}.mfa-card .mfa-check{display:flex;align-items:flex-start;gap:10px}.mfa-card .mfa-check input{width:22px;min-height:22px;height:22px;margin-top:3px;flex-shrink:0}.mfa-cancel{width:100%;margin-top:20px}.mfa-recovery{margin-top:20px}.mfa-settings{max-width:620px;padding:20px}.mfa-settings h2{font-size:18px}
 
 .form-draft-status{padding:10px 12px;border:1px solid #ecd9aa;border-radius:8px;background:#fff9e9;color:#765422;font-size:14px;line-height:1.7;margin:10px 0}
+
+/* Customer portal: long recovery codes wrap on narrow phones, never persist client-side. */
+.member-portal { max-width: 760px; margin-inline: auto; }
+.member-portal input:not([type="checkbox"]), .member-portal select { width: 100%; min-height: 44px; font-size: 16px; }
+.member-portal label { display: grid; gap: 8px; margin-block: 12px; }
+.member-portal label.business-confirm { display: flex; }
+.member-recovery { padding-left: 1.2rem; }
+.member-recovery code { overflow-wrap: anywhere; font-size: 14px; user-select: all; }
+.member-portal .business-links { flex-wrap: wrap; }

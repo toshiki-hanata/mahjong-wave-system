@@ -21,10 +21,12 @@ function positiveInteger(value: string | undefined, fallback: number, minimum: n
 
 /** Development defaults are provisional. Production requires explicit approval AND exact HTTPS origin/RP configuration. */
 export function getCustomerAuthConfig(env: Readonly<Record<string, string | undefined>> = process.env): CustomerAuthConfig | null {
-  if (!customerDevelopmentFeaturesAllowed(env)) return null;
+  const preview = env.VERCEL_ENV === "preview" && env.CUSTOMER_PORTAL_PREVIEW_ENABLED === "true" && env.CUSTOMER_PORTAL_ENABLED === "true" && env.CUSTOMER_AUTH_ENABLED === "true";
+  if (!customerDevelopmentFeaturesAllowed(env) && !preview) return null;
+  if (preview && (!env.CUSTOMER_AUTH_ORIGIN || !env.CUSTOMER_AUTH_RP_ID || env.CUSTOMER_AUTH_ORIGIN !== env.APP_ORIGIN)) throw new CustomerAuthConfigurationError();
   const production = env.NODE_ENV === "production" || env.VERCEL_ENV === "production";
   if (env.CUSTOMER_AUTH_ENABLED === "false") return null;
-  if (production && (env.CUSTOMER_AUTH_ENABLED !== "true" || env.CUSTOMER_AUTH_PRODUCTION_APPROVED !== "true")) return null;
+  if (production && !preview && (env.CUSTOMER_AUTH_ENABLED !== "true" || env.CUSTOMER_AUTH_PRODUCTION_APPROVED !== "true")) return null;
   if (production && (!env.CUSTOMER_AUTH_ORIGIN || !env.CUSTOMER_AUTH_RP_ID)) throw new CustomerAuthConfigurationError();
   const rawOrigin = env.CUSTOMER_AUTH_ORIGIN ?? "http://localhost:3000";
   let origin: URL;
@@ -34,7 +36,7 @@ export function getCustomerAuthConfig(env: Readonly<Record<string, string | unde
   if (origin.username || origin.password || origin.pathname !== "/" || origin.search || origin.hash
     || origin.hostname !== rpId || !/^(localhost|[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?)$/.test(rpId)
     || /^\d+(?:\.\d+){3}$/.test(rpId) || rpId.includes("..")
-    || (origin.protocol !== "https:" && !(origin.protocol === "http:" && rpId === "localhost" && !production))) throw new CustomerAuthConfigurationError();
+    || (origin.protocol !== "https:" && !(origin.protocol === "http:" && rpId === "localhost" && !production && !preview))) throw new CustomerAuthConfigurationError();
   return Object.freeze({
     origin: origin.origin, rpId, rpName: "麻雀ウェーブ", secureCookies: origin.protocol === "https:",
     sessionTtlSeconds: positiveInteger(env.CUSTOMER_AUTH_SESSION_TTL_SECONDS, 7 * 24 * 60 * 60, 300, 30 * 24 * 60 * 60),

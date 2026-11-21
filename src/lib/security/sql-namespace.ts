@@ -1,7 +1,7 @@
 import "server-only";
 import { Prisma } from "@prisma/client";
-const tables = new Set(["Store", "LoginAttemptBucket", "AuditLog", "PointLedgerEntry", "StaffMfa"] as const);
-type Table = "Store" | "LoginAttemptBucket" | "AuditLog" | "PointLedgerEntry" | "StaffMfa";
+const tables = new Set(["Store", "LoginAttemptBucket", "AuditLog", "PointLedgerEntry", "StaffMfa", "LegacyPointMigration", "LegacyPointChange"] as const);
+type Table = "Store" | "LoginAttemptBucket" | "AuditLog" | "PointLedgerEntry" | "StaffMfa" | "LegacyPointMigration" | "LegacyPointChange";
 export function applicationDatabaseSchema(env: Readonly<Record<string, string | undefined>> = process.env): string {
   try {
     const schema = env.DATABASE_URL ? new URL(env.DATABASE_URL).searchParams.get("schema") ?? "public" : "public";

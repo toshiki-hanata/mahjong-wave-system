@@ -6,7 +6,7 @@ import ts from "typescript";
 const protectedActions: Record<string, string[]> = {
   "business-days": ["updateBusinessDayTimesAction", "openBusinessDayAction", "closeBusinessDayAction", "updateFreeGamePriceAction"],
   "customers/[id]/link": ["issuePairingAction", "confirmStaffPairingAction", "cancelPairingAction"],
-  "customers/[id]/points": ["adjustPointsAction", "reversePointsAction"],
+  "customers/[id]/points": ["adjustPointsAction", "reversePointsAction", "saveLegacyPointsAction"],
   customers: ["createCustomerAction", "updateCustomerAction", "deactivateCustomerAction"],
   "customers/reconcile": ["previewRosterAction"],
   games: ["createStoreRuleAction", "createGameAction", "correctGameAction"],
@@ -23,6 +23,7 @@ const approved = new Set(Object.entries(protectedActions).flatMap(([dir, names])
   "src/app/admin/mfa/actions.ts:acknowledgeMfaAction", "src/app/admin/mfa/actions.ts:cancelMfaAction",
   "src/app/admin/actions.ts:logoutAction", "src/app/admin/login/actions.ts:loginAction",
   "src/app/admin/session-actions.ts:refreshStaffSessionAction", "src/app/member/link/actions.ts:claimPairingAction",
+  ... ["memberLoginOptionsAction", "memberLoginVerifyAction", "memberRegistrationOptionsAction", "memberRegistrationVerifyAction", "memberRecoveryRotateAction", "memberRecoveryAcknowledgeAction", "memberPasskeyRemoveAction", "memberLogoutAction"].map(name => "src/app/member/auth/actions.ts:" + name),
   "src/app/member/link/actions.ts:readPairingAction", "src/app/member/link/actions.ts:confirmPairingAction",
 ]));
 function list(dir: string): string[] { return fs.readdirSync(dir, { withFileTypes: true }).flatMap(e => e.isDirectory() ? list(path.join(dir, e.name)) : [path.join(dir, e.name)]); }

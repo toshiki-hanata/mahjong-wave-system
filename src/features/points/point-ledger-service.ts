@@ -2,6 +2,7 @@ import "server-only";
 import { Prisma, type PrismaClient } from "@prisma/client";
 import { z } from "zod";
 import { lockBusinessStore } from "@/features/business-days/business-day-service";
+import { readLegacyPoints } from "./legacy-points-service";
 import { recordAuditLog } from "@/lib/audit-log";
 
 const MAX_BALANCE = 2_147_483_647;
@@ -58,8 +59,8 @@ async function writeEntry(database: Database, raw: PointAdjustmentInput | PointR
     let delta: number, reversesEntryId: string | null = null;
     if ("delta" in input) delta = input.delta;
     else {
-      const original = await tx.pointLedgerEntry.findFirst({ where: { id: input.entryId, storeId: context.storeId, customerId: input.customerId, kind: "ADJUST" }, select: { id: true, delta: true, reversalEntries: { select: { id: true } } } });
-      if (!original || original.reversalEntries.length) throw new PointConflictError();
+      const original = await tx.pointLedgerEntry.findFirst({ where: { id: input.entryId, storeId: context.storeId, customerId: input.customerId, kind: "ADJUST" }, select: { id: true, delta: true, legacyChange: { select: { id: true } }, reversalEntries: { select: { id: true } } } });
+      if (!original || original.legacyChange || original.reversalEntries.length) throw new PointConflictError();
       delta = -original.delta; reversesEntryId = original.id;
     }
     const after = current.value + delta;
@@ -83,7 +84,8 @@ export async function getPointLedgerData(database: PrismaClient, context: Contex
     if (!customer) return null;
     const current = await balance(tx, context.storeId, customerId);
     const entries = await tx.pointLedgerEntry.findMany({ where: { storeId: context.storeId, customerId }, orderBy: { sequenceNumber: "desc" }, take: 50,
-      select: { id: true, kind: true, delta: true, balanceAfter: true, sequenceNumber: true, reason: true, createdAt: true, reversesEntryId: true, actor: { select: { name: true } }, reversalEntries: { select: { id: true } } } });
-    return { customer, canAdjust, balance: current.value, totalEntries: current.count, entries };
+      select: { id: true, kind: true, delta: true, balanceAfter: true, sequenceNumber: true, reason: true, createdAt: true, reversesEntryId: true, actor: { select: { name: true } }, legacyChange: { select: { id: true } }, reversalEntries: { select: { id: true } } } });
+    const migration = await readLegacyPoints(tx, context.storeId, customerId);
+    return { customer, canAdjust, migration, balance: current.value, totalEntries: current.count, entries };
   }, { isolationLevel: "RepeatableRead", maxWait: 10_000, timeout: 30_000 });
 }

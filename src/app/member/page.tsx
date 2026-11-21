@@ -1,0 +1,15 @@
+import Link from "next/link";
+import { requireMemberPage, memberCookie } from "@/features/customer-auth/portal-http";
+import { getMemberPortalData } from "@/features/customer-auth/portal-data";
+import { MemberLogoutButton } from "@/features/customer-auth/portal-forms";
+type Summary = { games: number; averageRank: string | null; tops: number; topRate: string | null; scoredGames: number; scoreTotal: string | null };
+function Stats({ title, data }: { title: string; data: Summary | null }) { return <section className="panel business-panel"><h2>{title}</h2>{data ? <><p>{data.games}半荘 ／ 平均順位 {data.averageRank ?? "—"} ／ 1位 {data.tops}回（{data.topRate ?? "—"}）</p><p>合計スコア {data.scoreTotal ?? "未入力"} ／ 点数入力済み {data.scoredGames}半荘</p></> : <p>営業の記録はまだありません。</p>}</section>; }
+export default async function MemberPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
+  const { database } = await requireMemberPage(), params = await searchParams, page = /^\d{1,5}$/.test(params.page ?? "") ? Number(params.page) : 1;
+  const data = await getMemberPortalData(database, await memberCookie(), page), date = (d: Date) => new Intl.DateTimeFormat("ja-JP", { timeZone: data.timezone, dateStyle: "short", timeStyle: "short" }).format(d);
+  return <><p>{data.storeName} ／ {data.nickname} ／ 会員番号 {data.customerCode}</p>{!data.recoveryAcknowledged && <p className="business-warning">復旧コードの保管が未確認です。<Link href="/member/settings">ログインの管理で再発行・保管確認</Link>をしてください。</p>}
+    <Stats title={data.day ? `${data.day.closed ? "直近" : "今回"}の営業（${data.day.label}開始）` : "今回の営業"} data={data.daily} /><Stats title={data.monthLabel} data={data.monthly} /><Stats title={data.yearLabel} data={data.yearly} /><Stats title="通算成績" data={data.lifetime} />
+    <section className="panel business-panel"><h2>ポイント</h2><p><strong>{data.balance.toLocaleString("ja-JP")} pt</strong></p>{data.migratedAmount === null ? <p className="business-warning">旧ポイントの引継ぎ確認待ちです。上の数字はシステムへの記録済み残高です。初回ログイン後、旧カードを店員に提示してください。</p> : <p>旧ポイントの引継ぎ確認済み（引継ぎ総数 {data.migratedAmount}pt）</p>}<p>自動付与・特典交換は準備中です。</p><h3>ポイント履歴（最新50件）</h3>{data.points.length ? data.points.map(p => <p key={p.id}>{date(p.createdAt)} ／ {p.label} ／ {p.delta > 0 ? "+" : ""}{p.delta}pt ／ 残高{p.balanceAfter}pt</p>) : <p>記録はまだありません。</p>}</section>
+    <section aria-label="自分の対局履歴"><h2>自分の対局履歴</h2><p>訂正後の確定結果を表示します。着順だけの結果は本数・着順集計に含み、点数・スコア集計から除きます。月間・年間は店舗の時刻における対局日時で集計します。</p>{data.history.length ? data.history.map(row => <article className="panel business-panel" key={row.id}><h3>{row.rank}位</h3><p>{date(row.at)} ／ {row.businessDayLabel && row.businessDayLabel + "営業 ／ "}{row.sequence}本目</p><p>点数 {row.finalPoints?.toLocaleString("ja-JP") ?? "未入力"} ／ スコア {row.scoreScaled === null ? "未入力" : (row.scoreScaled / 10 ** row.scorePrecision).toFixed(row.scorePrecision)}</p></article>) : <p>対局結果はまだありません。</p>}<div className="business-links">{data.page > 1 && <Link className="button button-secondary" href={`/member?page=${data.page - 1}`}>新しい結果</Link>}{data.hasMore && <Link className="button button-secondary" href={`/member?page=${data.page + 1}`}>以前の結果</Link>}</div></section><MemberLogoutButton />
+  </>;
+}
