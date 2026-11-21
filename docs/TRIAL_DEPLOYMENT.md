@@ -103,3 +103,7 @@ Deployment ID：`dpl_9vg53G3nKuRqgBpwH5W8KQHczu4F`。READY、実行地域sin1、
 - [自動テスト用の認証保護バイパス](https://vercel.com/docs/deployment-protection/methods-to-bypass-deployment-protection/protection-bypass-automation)
 
 将来の実営業・紙併用・費用の判断は[店舗での先行運用計画](PILOT_OPERATIONS_PLAN.md)。
+
+## 2026-11-21 卓中心の操作・通知・入力保護・営業終了案内
+
+[改善記録](USABILITY_IMPROVEMENTS.md)のU01〜U04をPreview dpl_Eyf56u2SDfTstDu9jqu6iueegUJVへ配置し固定URLを接続。業務コード32e3b84、173ファイルの選別版。通常387件、型/lint、専用DBのHTTPS Chrome/WebKit計96項目成功。現行試用DBの変更/seedなし。Vercelアカウント不要、アプリ認証/MFA/Production停止は維持。顧客マイページは次工程であり、この配置での一般提供はまだ行っていない。
