@@ -2,6 +2,8 @@
 
 ユーザー指示：5項目すべてを実装し、顧客マイページにポイント残高・履歴を追加。初回ログイン後、店員が旧LINEショップカードを目視確認して引継ぎを処理する。旧カードの固有番号はない／不明との回答。OWNER／MANAGERのみ引継ぎ・調整・訂正を行い、理由と担当・変更前後を残す。同一Customerの二重移行は拒否するが、番号のない旧カードを別Customerへ移すことは自動識別できず、本人・名簿・旧カードの店頭照合が必要。
 
+最新の公開状況は末尾の「U05 公開反映」を参照。途中の未反映という記述は各検証時点の履歴。
+
 ## 進捗
 
 - [x] U01 卓一覧を操作の中心に整理：保存済み本数／次の半荘、受付・卓・営業終了への案内、意図して開く卓終了と退店確認への導線。
@@ -59,7 +61,27 @@ U01〜U04を同じ選別ソース173ファイルで最適化ビルドし、Chrom
 
 変更：customer-auth/portal-*.ts(x)、app/member/*、points/legacy-points-*、会員ポイント画面・引継ぎ待ち画面、Prisma migration 20261121180000_customer_portal_auth / 20261121190000_legacy_point_migration、@simplewebauthn server14.0.3/browser14.0.0。追加スキーマは隔離されたschema-only DBに適用済み。新しい引継ぎヘッダー/変更履歴は実行ロールのSELECT/INSERTだけとし、更新・削除権限を検査。
 
-- [ ] U05 選別したソースを隔離DBのHTTPS Previewへ配置し、認証と既存営業フローを再確認する。
-- [ ] U05 既存試運用DBのバックアップ分岐→追加migration→既存営業行の不変確認→最小権限付与→固定URLへ配置。現時点で既存試運用DBへは未適用。
+- [x] U05 選別したソースを隔離DBのHTTPS Previewへ配置し、認証と既存営業フローを再確認する。
+- [x] U05 既存試運用DBのバックアップ分岐→追加migration→既存営業行の不変確認→最小権限付与→固定URLへ配置。現時点で既存試運用DBへは未適用。
 
 公開制御：CUSTOMER_PORTAL_ENABLED=trueを必須とし、PreviewはCUSTOMER_PORTAL_PREVIEW_ENABLED=true/CUSTOMER_AUTH_ENABLED=trueとAPP_ORIGINに一致するHTTPS origin・正確なRP IDが必要。true Productionは引き続き停止。開発用の一時ドメインで登録したパスキーは将来の別ドメインでそのまま利用できないため、ドメイン移行前に再登録/復旧の受入が必要。復旧コードやセッションをブラウザ永続ストレージへ保存しない。Cookieの手動削除/OS終了では未保管コードを再表示できず、パスキー再ログイン後に再発行する。
+
+## U05 公開反映（2026-11-21）
+
+スタッフ：https://mahjong-wave-trial.vercel.app/admin/login
+
+お客さん：https://mahjong-wave-trial.vercel.app/member （未認証では/member/loginへ）。初回は店員が会員詳細→スマホ連携でQRを発行し、双方の確認番号照合→本人端末でパスキー登録→復旧コード保管。以降はパスキーでログイン。店員は顧客管理→初回連携・ポイント引継ぎ待ち、または会員詳細→ポイントから旧残高を引継ぎ/訂正する。
+
+Preview dpl_GWa3f26fg42zHWh6hzXBwF3UwRnW（https://mahjong-wave-trial-i1l7ym6rl-tsudatsu-diet.vercel.app）へ、業務コード769833bの選別189ファイルを配置し固定URLを接続。秘密値の照合0件、env/Git/テスト/ログ/モック/内部資料/未コミットprototypeは含めない。Vercelアカウント不要、アプリ認証・OWNER/MANAGER MFA・true Production停止ガードを維持。新規有料契約・Git pushなし。
+
+同一ソースの隔離HTTPS Previewで、Chrome/WebKitの既存営業フロー96項目、マイページ/ポイント/復旧26項目、実WebAuthn応答のOrigin/challenge/本人ハンドル改ざんと登録/ログイン同時再送12項目、公開入口38項目に成功。戻る取消の検査はPlaywrightのURL更新完了を待つように調整し、実URLと入力保持を再確認した。製品の履歴ガードの変更は不要だった。実機ではなくChrome仮想認証器とWebKit UIの確認である。
+
+Neon Freeの実契約・10分岐上限を確認し、追加前バックアップ br-cold-mud-bic5brok をコンピュートなしで作成。保持対象のDBへ追加migration2件を適用し計21件。前後でStore/Staff/Customer/Visit/Game/GamePlayerResult/PointLedgerEntry/BusinessDay/TableSession/TableSeatの10テーブルの既存内容不変を照合。新しい引継ぎ履歴はSELECT/INSERTのみ、顧客認証は必要なSELECT/INSERT/UPDATEのみ。既存名簿・来店・対局・ポイントへの架空QA追加やリセットはしない。バックアップの隔離復元は未検証。
+
+固定URLで38項目を再確認し、既存STAFFの通常ログインから5業務画面・既存QRの保持・顧客受付200・顧客ログイン200・390px・JS例外0を確認した。読み取り確認前後で顧客/来店/対局/ポイント/引継ぎデータに追加変更なし。認証・監査ログは通常のアクセスに伴って記録される。アカウント情報は変更していない。
+
+残る受入：実iPhone/Androidのパスキーと復旧、モバイル回線、複数端末、1営業日通し、本人の管理者MFA/管理基盤MFA、隔離復元、正式ドメイン切替・名簿/旧ポイントを保持して試験実績を分離する移行。自動付与/交換・対戦相手表示・全認証手段喪失時の店頭復旧は今回の完了に含めない。
+
+更新は現在のコミットから同じファイル選別・秘密検査→隔離DB用Previewで検証→現行DBには必要な追加migrationのみ→通常Preview配置→固定エイリアス更新。CUSTOMER_PORTAL_ENABLED/CUSTOMER_PORTAL_PREVIEW_ENABLED/CUSTOMER_AUTH_ENABLEDと、APP_ORIGINに一致するCUSTOMER_AUTH_ORIGIN・正確なCUSTOMER_AUTH_RP_IDを配置時に渡す。認証鍵やDB接続文字列は既存の暗号化設定を使い、ソース/コマンド引数へ書かない。
+
+切り戻し：顧客認証だけの不具合は同じ現行コードで顧客認証フラグを無効にしたPreviewへ戻し、ポイント履歴を保持する。旧コードの一般取消は引継ぎ行を識別できないため、引継ぎ開始後に古い業務版へ戻す場合は先にポイント書込を停止し、責任者確認後に行う。スキーマのDROPや残高の上書きはしない。

@@ -107,3 +107,7 @@ Deployment ID：`dpl_9vg53G3nKuRqgBpwH5W8KQHczu4F`。READY、実行地域sin1、
 ## 2026-11-21 卓中心の操作・通知・入力保護・営業終了案内
 
 [改善記録](USABILITY_IMPROVEMENTS.md)のU01〜U04をPreview dpl_Eyf56u2SDfTstDu9jqu6iueegUJVへ配置し固定URLを接続。業務コード32e3b84、173ファイルの選別版。通常387件、型/lint、専用DBのHTTPS Chrome/WebKit計96項目成功。現行試用DBの変更/seedなし。Vercelアカウント不要、アプリ認証/MFA/Production停止は維持。顧客マイページは次工程であり、この配置での一般提供はまだ行っていない。
+
+## 2026-11-21 顧客マイページ・ポイント引継ぎの追加
+
+最新Previewはdpl_GWa3f26fg42zHWh6hzXBwF3UwRnW、業務コード769833b、189ファイル。固定URL/memberで本人の成績・ポイントを表示。初回はスタッフの会員別QRと双方の番号照合、パスキー登録、復旧コード保管が必要。OWNER/MANAGERが旧カードを目視確認して引継ぎ・差分訂正できる。[改善記録](USABILITY_IMPROVEMENTS.md)のU05公開反映に検証と更新/切り戻し手順を記録。隔離HTTPSの96+26+12+38項目成功、固定URLの38項目と通常スタッフの読み取り確認成功。既存業務データ不変、バックアップ分岐作成済み、復元/実機は未確認。
