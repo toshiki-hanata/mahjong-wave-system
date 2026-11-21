@@ -87,7 +87,7 @@ export default async function VisitsPage({ searchParams }: VisitsPageProps) {
       <div className="visit-status-columns">
         {[{ status: VisitStatus.WAITING, visits: waitingVisits }, { status: VisitStatus.PLAYING, visits: playingVisits }].map((group) => <section className="panel visit-status-panel" key={group.status}>
           <header><h3>{statusLabel[group.status]}</h3><span>{group.visits.length}</span></header>
-          {group.visits.length === 0 ? <p className="visit-empty">該当する来店はありません。</p> : <ul className="visit-list">{group.visits.map((visit) => <li className="visit-list-row" key={visit.id}>
+          {group.visits.length === 0 ? <p className="visit-empty">該当する来店はありません。</p> : <ul className="visit-list">{group.visits.map((visit) => <li className="visit-list-row" id={`visit-${visit.id}`} key={visit.id}>
             <div className="visit-customer-info"><strong>{participantName(visit.customer)}</strong><span>{visit.customer.participantStaffId ? "スタッフ参加" : visit.customer.customerCode}</span><time dateTime={visit.checkedInAt.toISOString()}>受付 {formatVisitDateTime(visit.checkedInAt, staff.storeTimezone)}</time></div>
             {visit.status === VisitStatus.WAITING ? <CheckOutButton visitId={visit.id} label={visit.customer.participantStaffId ? "参加を終了" : "退店する"} /> : <p className="visit-playing-hint">卓から外して待機中に戻してから退店・参加終了できます。</p>}
           </li>)}</ul>}

@@ -1,3 +1,4 @@
+import { getCloseChecklist } from "./close-checklist";
 import "server-only";
 
 import type { PrismaClient } from "@prisma/client";
@@ -25,8 +26,9 @@ export async function getBusinessDayPageData(database: PrismaClient | null, stor
     const store = await tx.store.findUnique({ where: { id: storeId }, select: { freeGamePriceYen: true } });
     const openVisits = await tx.visit.count({ where: { storeId, status: { in: ["WAITING", "PLAYING"] } } });
     const activeTables = await tx.tableSession.count({ where: { storeId, status: "ACTIVE" } });
+    const closeTasks = await getCloseChecklist(tx, storeId);
     return {
-      nextPriceYen: store?.freeGamePriceYen ?? 2500, openVisits, activeTables,
+      closeTasks, nextPriceYen: store?.freeGamePriceYen ?? 2500, openVisits, activeTables,
       days: days.map((day) => {
         const gameRows = games.filter((row) => row.businessDayId === day.id);
         const customerRows = visits.filter((row) => row.businessDayId === day.id);

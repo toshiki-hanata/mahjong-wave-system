@@ -1,3 +1,4 @@
+import { participantName } from "@/features/staff-participation/participant-policy";
 import Link from "next/link";
 import { randomUUID } from "node:crypto";
 import { requireStaff } from "@/lib/auth/current-staff";
@@ -41,6 +42,11 @@ export default async function BusinessDaysPage() {
       <h2>{current ? "営業終了前の確認" : "前回の片付け状況"}</h2>
       <ul className="business-checks"><li>利用中の卓 <strong>{data.activeTables}卓</strong></li><li>退店・参加終了が済んでいない人 <strong>{data.openVisits}人</strong></li></ul>
       {blocked && <p className="business-warning" role="status">先に卓を解放してから、来店中のお客さんを退店処理してください。以前の営業・テストで残ったものも対象です。</p>}
+      {blocked && <div className="close-task-list"><h3>残っている処理へ進む</h3>
+        {data.activeTables > 0 && <section><h4>1. 利用中の卓を終了する（{data.activeTables}卓）</h4><ul>{data.closeTasks.tables.map(table => <li key={table.id}><strong>{table.name}</strong><Link href={table.href} prefetch={false} className="button button-secondary">この卓の結果・終了へ</Link></li>)}</ul>{data.activeTables > data.closeTasks.tables.length && <Link href="/admin/tables" prefetch={false}>残りの卓も一覧で確認する</Link>}</section>}
+        {data.openVisits > 0 && <section><h4>2. 退店・参加終了を済ませる（{data.openVisits}人）</h4><ul>{data.closeTasks.visits.map(visit => <li key={visit.id}><div><strong>{participantName(visit.customer)}</strong><span>{visit.status === "PLAYING" ? ["対局中", visit.tableName, "先に卓を終了"].filter(Boolean).join(" · ") : "待機中 · 退店できます"}</span></div><Link href={visit.href} prefetch={false} className="button button-secondary">{visit.status === "PLAYING" ? "卓を確認する" : visit.customer.participantStaffId ? "参加を終了する画面へ" : "この人の退店へ"}</Link></li>)}</ul>{data.openVisits > data.closeTasks.visits.length && <Link href="/admin/visits#open-visits-title" prefetch={false}>残りの人も来店一覧で確認する</Link>}</section>}
+        <p>卓を終えると4人は待機に戻ります。退店・参加終了後、この画面で営業を終了してください。</p>
+      </div>}
       {current && <CloseBusinessDayForm key={current.id} businessDayId={current.id} blocked={blocked} />}
       {current && canCorrect && <details className="business-time-details">
         <summary>営業終了を押し忘れた場合</summary>
